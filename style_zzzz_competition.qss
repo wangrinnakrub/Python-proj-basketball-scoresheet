@@ -1,0 +1,7 @@
+
+#team1_line_up_label,#team2_line_up_label{
+    color: #232323;
+    font-family: Saira Condensed;
+    font-weight: 780;
+    font-size: 25px;
+}

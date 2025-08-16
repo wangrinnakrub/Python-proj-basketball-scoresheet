@@ -84,8 +84,6 @@ class InnerPopup(QDialog):
         self.notification_label.setText(text)
 
 
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()

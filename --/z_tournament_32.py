@@ -14,7 +14,7 @@ class tournament32(QMainWindow):
         super().__init__()
         self.setWindowTitle('Basketball Score Sheet - Tournament 32')
         self.showMaximized()
-        self.import_style('style_tournament_32.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_tournament_32.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
         self.created_teams = set()

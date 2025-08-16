@@ -18,7 +18,7 @@ class Create_account(QMainWindow):
         super().__init__()
         self.setWindowTitle('Create Account')
         self.setGeometry(280, 90, 700, 650) # x,y   w,h
-        self.import_style('style_create_account.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_create_account.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
 

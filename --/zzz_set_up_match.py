@@ -11,7 +11,7 @@ class Set_up_match(QMainWindow):
         super().__init__()
         self.setWindowTitle('Basketball Score Sheet - Set Up Match')
         self.showMaximized()
-        self.import_style('style_zzz_set_up_match.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_zzz_set_up_match.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
 
         # self.username = 'navyy'

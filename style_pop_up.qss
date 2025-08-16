@@ -1,0 +1,26 @@
+*{
+    background-color: #f3f3f3;
+}
+#go_back_to_sign_up_label{
+    font-family: Tex Gyre Adventor;
+    color: #313131;
+    font-size: 17px;
+    font-weight: bold;
+}
+#no_button{
+    border-radius: 20px;
+    color: aliceblue;
+    background-color: #2f2f2f;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+}
+#no_button:hover{
+    border-radius: 20px;
+    border: 2px solid #2b2b2b;
+    color: #1a1a1a;
+    background-color: #f3f3f3;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+}

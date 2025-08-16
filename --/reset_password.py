@@ -17,7 +17,7 @@ class Reset_password(QMainWindow):
         super().__init__()
         self.setWindowTitle('Reset_password')
         self.setGeometry(360, 80, 700, 650) # x,y   w,h
-        self.import_style('style_reset_password.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_reset_password.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
 

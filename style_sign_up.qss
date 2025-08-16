@@ -1,0 +1,74 @@
+/* Style for basketball score sheet project */
+
+
+/* --- Login page ab --- */
+
+*{
+    background-color:  #f3f3f3;
+    /* background-color:  #ff56c7; */
+}
+
+QPushButton#back_to_sign_in{
+
+    background-color: transparent;
+    border:none;
+    border-radius: 20px;
+
+}
+
+QPushButton#back_to_sign_in:hover{
+
+    background-color: rgb(226, 226, 226);
+    border:none;
+    border-radius: 20px;
+}
+
+/* sign up label */
+#sign_up_label {
+
+    /* padding-top: 60px; */
+    color: #2a2a2a;
+    /* color: #a285ff; */
+    /* background-color: cadetblue; */
+    /* font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; */
+    font-family: TeX Gyre Adventor;
+    font-size: 30px;
+    font-weight: bold;
+
+}
+
+#phone_number_label,#password_label,#email_label,#fullname_label{
+
+    padding-left: 20px;
+    /* padding-top: 40px; */
+    color: rgb(118, 118, 118);
+    /* background-color: aquamarine; */
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+
+}
+
+
+
+
+#fullname_error_label,#name_error_label,#password_error_label,#phone_number_error_label,#email_error_label {
+
+    color: #ff4343;
+
+}
+
+QPushButton#next_button{
+
+    border-radius: 18px;
+    color: aliceblue;
+    background-color: #2a2a2a;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}
+
+QPushButton#next_button:hover{
+    color: #000000;
+    background-color: #ffffff;
+}

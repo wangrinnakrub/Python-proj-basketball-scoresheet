@@ -15,7 +15,7 @@ class Forgot_password_page(QMainWindow):
         super().__init__()
         self.setWindowTitle('Basketball Score Sheet - Forgot Password')
         self.setGeometry(360, 120, 700, 400) # x,y   w,h
-        self.import_style('style_forgot_password.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_forgot_password.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
 

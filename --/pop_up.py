@@ -8,7 +8,7 @@ class PopupWindow(QDialog):
         super().__init__()
         self.setWindowTitle(' ')
         self.setFixedSize(370, 130)
-        self.import_style('style_pop_up.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_pop_up.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
 

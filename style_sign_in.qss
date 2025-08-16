@@ -1,0 +1,88 @@
+/* Style for basketball score sheet project */
+
+/* --- Sign_in page --- */
+
+*{
+    background-color: #f3f3f3;
+}
+
+/* sign_in label */
+#sign_in_label {
+
+
+    padding-top: 40px;
+    color: #2a2a2a;
+    font-family: TeX Gyre Adventor;
+    /* font-family: Product Sans; */
+    font-size: 30px;
+    font-weight: bold;
+
+}
+
+/* username label */
+#username_label{
+
+    /* margin-left: 30px;
+    margin-right: 30px; */
+    padding-left: 20px;
+    /* padding-top: 40px; */
+    color: rgb(118, 118, 118);
+    /* background-color: cadetblue; */
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+
+}
+
+
+/* password label */
+#password_label{
+
+    /* margin-left: 30px;
+    margin-right: 30px; */
+    padding-left: 20px;
+    color: #767676;
+    /* background-color: cadetblue; */
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+
+}
+
+
+
+
+#password_input_box_layout,#username_input_box_layout{
+    background-color: burlywood;
+}
+
+#username_error_label,#password_error_label{
+
+    color: rgb(255, 67, 67);
+    /* background-color: burlywood; */
+
+}
+
+
+#sign_in_button {
+    border-radius: 18px;
+    color: rgb(255, 255, 255);
+    background-color: #2a2a2a;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+
+#sign_in_button:hover{
+
+    /* background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #43d9ff, stop:1 #ff56c7); */
+    color: rgb(15, 15, 15);
+    /* background-color: #d1b31a; */
+    background-color: #ffffff;
+    /* background-color: #000000b1; */
+    font-size: 12px;
+    /* letter-spacing: 1px; */
+}
+
+#signup_label:hover{
+    text-decoration: underline ;
+}

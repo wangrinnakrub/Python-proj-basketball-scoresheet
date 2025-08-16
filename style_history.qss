@@ -1,0 +1,106 @@
+
+QComboBox {
+    border-radius: 6px;
+    padding-left: 12px;
+    padding-bottom: 1px;
+    min-width: 6em;
+    background-color: #f3f3f3;
+    font-family: Tex Gyre Adventor;
+    font-size: 11px;
+    font-weight: 620;
+    color: #868686;
+}
+QComboBox:editable {
+    background: white;
+    background-color: #f3f3f3;
+    border: none;
+}
+QComboBox:!editable, QComboBox::drop-down:editable {
+    background: white;
+    background-color: #f3f3f3;
+    border: 2px solid #dfdfdf;
+}
+QComboBox:!editable:on, QComboBox::drop-down:editable:on {
+    background: white;
+    background-color: #f3f3f3;
+    border: 2px solid #dfdfdf;
+}
+QComboBox:on {
+    padding-left: 12px;
+    padding-bottom: 1px;
+    background-color: #f3f3f3;
+    border: none;
+    color: #868686;
+}
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    width: 30px;
+    height: 22px;
+    background-color: #f3f3f3;
+    border: none;
+    color: #ff0000;
+    border-radius: 6px;
+    padding-right: 3px;
+}
+QComboBox::down-arrow {
+    subcontrol-position: right;
+    image : url("C:/pic/down_arrow.png");
+    width: 28px;
+    height: 25px;
+    background-color: #f3f3f3;
+    border: none;
+    border-radius: 6px;
+}
+QComboBox::down-arrow:on {
+    image : url("C:/pic/up_arrow.png");
+    background-color: #f3f3f3;
+    border: none;
+}
+QComboBox QAbstractItemView {
+    border: 2px solid #dfdfdf;
+    selection-background-color: red;
+    font-family: Tex Gyre Adventor;
+    font-size: 11px;
+    font-weight: 620;
+    color: #868686;
+}
+QComboBox QAbstractItemView::item {
+    height: 25px;
+}
+QComboBox QAbstractItemView::item:selected {
+    background: lightpink;
+    font-family: Tex Gyre Adventor;
+    font-size: 11px;
+    font-weight: 620;
+    color: #626262;
+    border: none;
+}
+QScrollBar:vertical {
+    border: none;
+    background: transparent;
+    width: 6px;
+}
+QScrollBar::handle:vertical {
+    background: #b4b0ab;
+    min-height: 20px;
+    border-radius: 3px;
+}
+QScrollBar::add-line:vertical {
+    background: transparent;
+    height: 0px;
+    subcontrol-position: bottom;
+    subcontrol-origin: margin;
+}
+QScrollBar::sub-line:vertical {
+    background: transparent;
+    height: 0px;
+    subcontrol-position: top;
+    subcontrol-origin: margin;
+}
+QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+    background: transparent;
+}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}

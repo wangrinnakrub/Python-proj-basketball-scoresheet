@@ -202,7 +202,6 @@ class reset_game(QPushButton):
         super().leaveEvent(event)
 
 
-
 class Competition(QMainWindow):
     switch_to_match_set_up_from_competition = pyqtSignal()
     switch_to_tournament_32_from_competition = pyqtSignal()
@@ -211,7 +210,7 @@ class Competition(QMainWindow):
         super().__init__()
         self.setWindowTitle('Basketball Score Sheet - Set Up Match')
         self.showMaximized()
-        self.import_style('style_zzzz_competition.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_zzzz_competition.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
 
         self.team1 = 00

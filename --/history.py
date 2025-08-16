@@ -14,7 +14,7 @@ class History(QMainWindow):
         super().__init__()
         self.setWindowTitle('Basketball Score Sheet - Set Up Match')
         self.showMaximized()
-        self.import_style('style_history.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_history.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
 
         # self.username = 'navyy'

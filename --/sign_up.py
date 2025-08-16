@@ -16,7 +16,7 @@ class Signup_page(QMainWindow):
         super().__init__()
         self.setWindowTitle('Basketball Score Sheet - Sign Up')
         self.setGeometry(360, 80, 700, 650)
-        self.import_style('style_sign_up.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_sign_up.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
 

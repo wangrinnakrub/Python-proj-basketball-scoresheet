@@ -124,7 +124,6 @@ class player_image_button(QPushButton):
         super().leaveEvent(event)
 
 
-
 class HoverButton(QPushButton):
     def __init__(self, file_name=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -152,19 +151,17 @@ class HoverButton(QPushButton):
         super().leaveEvent(event)
 
 
-
 class Create_team(QMainWindow):
     switch_to_match_setup = pyqtSignal()
     switch_to_tournament32 = pyqtSignal(int, str)
     switch_to_tournament32_normal = pyqtSignal()
-
 
     def __init__(self,team_id=None):
         super().__init__()
         self.setWindowTitle("Match Setup")
         self.setGeometry(100, 60, 1000, 750)
         self.setMinimumSize(850, 750)
-        self.import_style('style_z_create_team.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_z_create_team.qss')
 
         self.current_team_id = team_id
         print(f"🔍 กำลังสร้าง Create_team: team_id = {team_id}")

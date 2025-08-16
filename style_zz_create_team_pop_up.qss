@@ -1,0 +1,296 @@
+*{
+    background-color: #f3f3f3;
+}
+
+QLabel#player_name_label,QLabel#player_number_label,QLabel#team_name_label,QLabel#player_height_label,QLabel#player_weight_label,QLabel#player_birthday_label,QLabel#player_status_label,QLabel#student_id_label,QLabel#thai_id_label,QLabel#phone_number_label{
+    /* background-color: wheat; */
+    /* padding-left: 20px; */
+    color: #ff767676;
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+}
+QLabel#team_name_label{
+    /* padding-left: 20px; */
+    color: rgb(118, 118, 118);
+    font-family: TeX Gyre Adventor;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+QLabel#player_number_under_image_label{
+    /* color: #612ca4; */
+    padding-top: 10px;
+    color: #4c4c4c;
+    font-family: TeX Gyre Adventor;
+    font-size: 27px;
+    font-weight: 900;
+}
+
+QPushButton#player_add_image{
+    background-color: #f5f5f5;
+    border: 3px solid #d7d7d7;
+    border-radius: 20%;
+}
+
+
+QLineEdit#player_name_input_box,QLineEdit#player_birthday_input_box,QLineEdit#player_status_input_box,QLineEdit#student_id_input_box,QLineEdit#thai_id_input_box,QLineEdit#phone_number_input_box{
+
+    padding-left: 25px;
+    color: #767676;
+    background-color: transparent;
+    border-top: transparent;
+    border-bottom: 2px solid;
+    border-left: transparent;
+    border-right: transparent;
+    border-color: #dfdfdf;
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+
+}
+
+
+QLineEdit#player_name_input_box:hover,QLineEdit#player_name_input_box:focus:hover,QLineEdit#player_birthday_input_box:hover,QLineEdit#player_birthday_input_box:focus:hover,QLineEdit#player_status_input_box:hover,QLineEdit#player_status_input_box:focus:hover,QLineEdit#student_id_input_box:hover,QLineEdit#student_id_input_box:focus:hover,QLineEdit#thai_id_input_box:hover,QLineEdit#thai_id_input_box:focus:hover,QLineEdit#phone_number_input_box:hover,QLineEdit#phone_number_input_box:focus:hover{
+
+    padding-left: 25px;
+    background-color: transparent;
+    border-top: transparent;
+    border-bottom: 2px solid;
+    border-left: transparent;
+    border-right: transparent;
+    border-color: #ff56c7 !important;
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+
+}
+
+QLineEdit#player_name_input_box:focus,QLineEdit#player_birthday_input_box:focus,QLineEdit#player_status_input_box:focus,QLineEdit#student_id_input_box:focus,QLineEdit#thai_id_input_box:focus,QLineEdit#phone_number_input_box:focus{
+
+    border-color: #2a2a2a;
+
+}
+
+QLineEdit#player_name_input_box::placeholder,QLineEdit#player_birthday_input_box::placeholder,QLineEdit#player_status_input_box::placeholder,QLineEdit#student_id_input_box::placeholder,QLineEdit#thai_id_input_box::placeholder,QLineEdit#phone_number_input_box::placeholder{
+
+    padding-left: 25px;
+    color: #dedede;
+    background-color: transparent;
+    border-top: transparent;
+    border-bottom: 2px solid;
+    border-left: transparent;
+    border-right: transparent;
+    border-color: #dfdfdf;
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+}
+
+
+QLineEdit#player_number_input_box,QLineEdit#player_height_input_box,QLineEdit#player_weight_input_box{
+
+    padding-left: 27px;
+    color: #767676;
+    background-color: transparent;
+    border-top: transparent;
+    border-bottom: 2px solid;
+    border-left: transparent;
+    border-right: transparent;
+    border-color: #dfdfdf;
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+
+}
+
+
+QLineEdit#player_number_input_box:hover,QLineEdit#player_number_input_box:focus:hover,QLineEdit#player_height_input_box:hover,QLineEdit#player_height_input_box:focus:hover,QLineEdit#player_weight_input_box:hover,QLineEdit#player_weight_input_box:focus:hover{
+
+    padding-left: 27px;
+    background-color: transparent;
+    border-top: transparent;
+    border-bottom: 2px solid;
+    border-left: transparent;
+    border-right: transparent;
+    border-color: #ff56c7 !important;
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+
+}
+
+QLineEdit#player_number_input_box:focus,QLineEdit#player_height_input_box:focus,QLineEdit#player_weight_input_box:focus{
+
+    border-color: #2a2a2a;
+
+}
+
+QLineEdit#player_number_input_box::placeholder,QLineEdit#player_height_input_box::placeholder,QLineEdit#player_weight_input_box::placeholder{
+
+    padding-left: 27px;
+    color: #dedede;
+    background-color: transparent;
+    border-top: transparent;
+    border-bottom: 2px solid;
+    border-left: transparent;
+    border-right: transparent;
+    border-color: #dfdfdf;
+    font-family: TeX Gyre Adventor;
+    font-weight: 620;
+}
+
+
+
+QComboBox#player_status_combobox {
+    border-radius: 6px;
+    /* border-top: none;
+    border-left: none;
+    border-right: none; */
+    /* border-bottom: 2px solid #4f4f4f; */
+    padding-left: 12px;
+    padding-bottom: 1px;
+    min-width: 6em;
+    background-color: #f3f3f3;
+    font-family: Tex Gyre Adventor;
+    font-size: 11px;
+    font-weight: 620;
+    color: #868686;
+}
+QComboBox#player_status_combobox:editable {
+    background: white;
+    background-color: #f3f3f3;
+    border: none;
+
+}
+QComboBox#player_status_combobox:!editable, QComboBox#player_status_combobox::drop-down:editable {
+    background: white;
+    background-color: #f3f3f3;
+    border: 2px solid #dfdfdf;
+
+}
+QComboBox#player_status_combobox:!editable:on, QComboBox#player_status_combobox::drop-down:editable:on {
+    background: white;
+    background-color: #f3f3f3;
+    border: 2px solid #dfdfdf;
+
+}
+QComboBox#player_status_combobox:on {
+    padding-left: 12px;
+    padding-bottom: 1px;
+    background-color: #f3f3f3;
+    border: none;
+    color: #868686;
+
+}
+QComboBox#player_status_combobox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: right;
+    width: 30px;
+    height: 22px;
+    background-color: #f3f3f3;
+    border: none;
+    /* color: #545454; */
+    color: #ff0000;
+    border-radius: 6px;
+    padding-right: 3px;
+
+}
+QComboBox#player_status_combobox::down-arrow {
+    subcontrol-position: right;
+    image : url("C:/pic/down_arrow.png");
+    width: 28px;
+    height: 25px;
+    background-color: #f3f3f3;
+    border: none;
+    border-radius: 6px;
+}
+QComboBox#player_status_combobox::down-arrow:on {
+    image : url("C:/pic/up_arrow.png");
+    background-color: #f3f3f3;
+    border: none;
+}
+QComboBox QAbstractItemView {
+    border: 2px solid #dfdfdf;
+    selection-background-color: red;
+    font-family: Tex Gyre Adventor;
+    font-size: 11px;
+    font-weight: 620;
+    color: #868686;
+}
+QComboBox QAbstractItemView::item {
+    height: 25px;
+}
+QComboBox QAbstractItemView::item:selected {
+    background: lightpink;
+    font-family: Tex Gyre Adventor;
+    font-size: 11px;
+    font-weight: 620;
+    color: #626262;
+    border: none;
+}
+
+
+
+#cancel_button{
+
+    border-radius: 20px;
+    color: aliceblue;
+    background-color: #c6c6c6;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}
+
+#cancel_button:hover{
+
+    border-radius: 20px;
+    border: 2px solid #d3d3d3;
+    color: #acacac;
+    background-color: #f3f3f3;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}
+
+#delete_button{
+
+    border-radius: 20px;
+    color: aliceblue;
+    background-color: #ff4444;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}
+
+#delete_button:hover{
+
+    border-radius: 20px;
+    border: 2px solid #ff4444;
+    color: #ff4444;
+    background-color: #f3f3f3;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}
+
+#ok_button{
+
+    border-radius: 20px;
+    color: aliceblue;
+    background-color: #2f2f2f;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}
+
+#ok_button:hover{
+
+    border-radius: 20px;
+    border: 2px solid #2b2b2b;
+    color: #1a1a1a;
+    background-color: #f3f3f3;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}

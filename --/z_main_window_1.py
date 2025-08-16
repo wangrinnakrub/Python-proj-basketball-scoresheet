@@ -3,6 +3,7 @@ from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 import sys, sqlite3
 
+
 class CustomMenu(QMenu):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -36,7 +37,7 @@ class Main_window(QMainWindow):
         self.setWindowTitle("Main Window")
         self.setGeometry(100, 60, 1000, 700)
         self.setMinimumSize(766, 600)
-        self.import_style('style_z_main_window.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_z_main_window.qss')
         self.ui()
 
         self.connection = sqlite3.connect(r'C:/Users/ASUS/OneDrive/Desktop/Dabest/basketball_score_sheet.db')

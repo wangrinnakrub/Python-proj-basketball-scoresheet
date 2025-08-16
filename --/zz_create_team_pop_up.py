@@ -80,7 +80,7 @@ class AddPlayer(QDialog):
         self.setWindowTitle(' ')
         self.setFixedSize(390, 730)
         # self.setFixedSize(390, 570)
-        self.import_style('style_zz_create_team_pop_up.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_zz_create_team_pop_up.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
 

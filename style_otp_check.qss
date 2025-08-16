@@ -1,0 +1,92 @@
+/* *{
+    background-color:  #f3f3f3;
+} */
+
+QPushButton#back{
+
+    background-color: transparent;
+    border-top: transparent;
+    border-bottom: transparent;
+    border-left: transparent;
+    border-right: transparent;
+    border-radius: 20px;
+
+}
+
+QPushButton#back:hover{
+
+    background-color: rgb(226, 226, 226);
+    border-top: transparent;
+    border-bottom: transparent;
+    border-left: transparent;
+    border-right: transparent;
+    border-radius: 20px;
+
+}
+
+#otp_label {
+
+    color: #2a2a2a;
+    font-family: TeX Gyre Adventor;
+    font-size: 24px;
+    font-weight: bold;
+
+}
+
+#sent_to_label{
+
+    font-size: 13px;
+
+}
+
+QLineEdit#otp_input_box_1,QLineEdit#otp_input_box_2,QLineEdit#otp_input_box_3,QLineEdit#otp_input_box_4,QLineEdit#otp_input_box_5,QLineEdit#otp_input_box_6 {
+
+    padding-left: 14px;
+    padding-top: 8px;
+    padding-bottom: 13px;
+    color: #585858;
+    background-color: #e0e0e0;
+    /* line-height: 20px; */
+    font-family: TeX Gyre Adventor;
+    font-size: 26px;
+    font-weight: 620;
+    border-radius: 6px;
+}
+
+QLineEdit#otp_input_box_1:focus,QLineEdit#otp_input_box_2:focus,QLineEdit#otp_input_box_3:focus,QLineEdit#otp_input_box_4:focus,QLineEdit#otp_input_box_5:focus,QLineEdit#otp_input_box_6:focus {
+
+    color: #585858;
+    background-color: #e0e0e0;
+    /* border: 1px solid #56c1ff ; */
+    border: 1px solid #ee00ff ;
+
+}
+
+#otp_error_label {
+
+    color: #ff4343;
+    font-size: 13px;
+}
+
+#resend_cooldown_error_label {
+
+    color: #7d7d7d;
+    font-size: 13px;
+}
+
+QPushButton {
+
+    border-radius: 18px;
+    border-color: #2a2a2a;
+    color: aliceblue;
+    background-color: #2a2a2a;
+    font-family: TeX Gyre Adventor;
+    font-size: 12px;
+    font-weight: 900;
+
+}
+
+QPushButton:hover {
+    color: #000000;
+    background-color: #ffffff;
+}

@@ -53,7 +53,7 @@ class otp_check(QMainWindow):
         super().__init__()
         self.setWindowTitle('Verify OTP')
         self.setGeometry(360, 180, 700, 400)
-        self.import_style('style_otp_check.qss')
+        self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_otp_check.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
         self.ui()
 
