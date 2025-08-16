@@ -575,6 +575,7 @@ class Signup_page(QMainWindow):
         print('email : ',self.email)
         print('valid :',self.valid)
         print('button valid :',self.button_valid)
+        # ฟหกไ
 
 
     def change_button_style_successful(self):
