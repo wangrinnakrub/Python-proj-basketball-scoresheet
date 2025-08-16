@@ -47,6 +47,7 @@ class PopupWindow(QDialog):
         self.no_button.setFixedSize(145,40)
         self.no_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.no_button.clicked.connect(self.reject)
+        # asdawd
 
         no_button_layout = QHBoxLayout()
         no_button_layout.setObjectName('no_button_layout')
