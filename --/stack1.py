@@ -232,7 +232,6 @@ class MainApp(QStackedWidget):
         self.sign_in.clear_input_box()
         self.sign_in.clear_focus_from_all()
         self.switch_with_animation_from_left(self.sign_in)
-        # test for thunwa
 
 # ----------------------------------------------------------------- #
 
