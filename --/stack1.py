@@ -311,6 +311,7 @@ class MainApp(QStackedWidget):
         else:
             print("ยังไม่มี tournament ใน database")
 
+        self.tournament32.fetch_usernames(self.username)
         self.switch_with_animation_from_right(self.tournament32)
 
 # ----------------------------------------------------------------- #
