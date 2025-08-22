@@ -1767,6 +1767,20 @@ class tournament32(QMainWindow):
                             }
                                                ''')
 
+    # !------------------------------ winner team --------------------------------* #
+
+
+        self.winner_button = QPushButton('', parent)
+        self.winner_button.setObjectName('winner_button')
+        self.winner_button.setGeometry(720, 490, 97, 28)
+        self.winner_button.setStyleSheet('''
+                            QPushButton{
+                                background: transparent;
+                                background-color: #d9d9d9;
+                                border: none;
+                            }
+                                            ''')
+
     # todo------------------------------ line --------------------------------* #
 
         self.team1_line = QPushButton(parent)
@@ -3376,6 +3390,34 @@ class tournament32(QMainWindow):
             else:
                 print(f"ℹ️ ไม่มีผู้ชนะในตำแหน่ง {i}")
 
+    def update_round_2_buttons(self, winners):
+        round_2_buttons = [
+            self.round_2_team_1_button,
+            self.round_2_team_2_button,
+        ]
+
+        for i, winner in enumerate(winners):
+            if winner is not None:
+                import re
+                match = re.search(r'(\d+)', str(winner))  # หาเลขจากชื่อ เช่น team1 → 1
+                if match:
+                    winner_number = int(match.group(1))
+                    index = (winner_number - 1) // 2
+                    if 0 <= index < len(round_2_buttons):
+                        round_2_buttons[index].setText(winner)
+                        
+                    else:
+                        print(f"⚠️ winner_number {winner_number} ทำให้ index เกินขอบเขต")
+                else:
+                    print(f"⚠️ หาเลขไม่เจอใน winner '{winner}'")
+            else:
+                print(f"ℹ️ ไม่มีผู้ชนะในตำแหน่ง {i}")
+
+    def update_winner_button(self, winner):
+        if winner is not None:
+            self.winner_button.setText(winner)
+        else:
+            print(f"ℹ️ ไม่มีผู้ชนะในตำแหน่ง")
 
     def hide_set_up_match_button(self):
         self.set_up_match_button.hide()
