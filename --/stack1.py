@@ -1,3 +1,4 @@
+from math import e
 from PyQt6.QtWidgets import *
 # from PyQt6.QtCore import *
 from PyQt6.QtCore import Qt, QRect, QPropertyAnimation, pyqtProperty
@@ -267,52 +268,157 @@ class MainApp(QStackedWidget):
         self.switch_with_animation_from_right(self.create_team)
 
 # ----------------------------------------------------------------- #
-
     def switch_to_tournament_32(self):
+        # 1) เช็คว่ามีทัวร์นาเมนต์ของ user มั้ย
         self.cursor.execute("SELECT COUNT(*) FROM tournament WHERE username = ?", (self.username,))
         tournament_count = self.cursor.fetchone()[0]
 
         if tournament_count > 0:
+        # 2) โหลด (match_id, winner) ทั้งหมดของ user
             self.cursor.execute("""
                 SELECT match_id, winner
                 FROM matches
                 WHERE username = ?
             """, (self.username,))
-            match_results = self.cursor.fetchall()
+            rows = self.cursor.fetchall()
 
-            if len(match_results) == 48:
-                match_winners = {match_id: winner for match_id, winner in match_results}
-                winners_round_8 = [None] * 8
-                for i in range(0, 16, 2):
-                    match_id = (i // 2) + 33
-                    if match_id in match_winners and match_winners[match_id]:
-                        winners_round_8[i // 2] = match_winners[match_id]
+            # เซ็ตข้อมูลช่วย
+            id_set = {mid for mid, _ in rows}
+            winners = {mid: w for mid, w in rows if w}  # เอาเฉพาะที่มีผู้ชนะแล้ว (None/"" จะไม่เอา)
+            id_count = len(id_set)
 
-                    self.tournament32.update_round_8_buttons(winners_round_8)
-                    print("อัพเดทปุ่มรอบ 8 ทีมเรียบร้อย")
-                else:
-                    print("ยังไม่มี match id ครบ 48 คู่ ไม่อัพเดทปุ่มรอบ 8")
+            def have_all(a, b):
+                # มีทุก match_id ตั้งแต่ a..b ครบไหม
+                return all(mid in id_set for mid in range(a, b + 1))
 
-                self.switch_with_animation_from_right(self.tournament32)
+            # ----- R32 -> R16: ต้องมีแมตช์ครบ 1..16, ใช้ผู้ชนะ 1..16 -----
+            if id_count >= 16 and have_all(1, 16):
+                winners_round_16_inputs = [winners.get(mid) for mid in range(1, 16 + 1)]
+                self.tournament32.update_round_16_buttons(winners_round_16_inputs)
 
-            if len(match_results) == 32:
-                match_winners = {match_id: winner for match_id, winner in match_results}
-                winners_round_32 = [None] * 16
-                for i in range(0, 32, 2):
-                    match_id = (i // 2) + 1
-                    if match_id in match_winners and match_winners[match_id]:
-                        winners_round_32[i // 2] = match_winners[match_id]
+            # ----- R16 -> R8: ต้องมีครบ 1..24, ใช้ผู้ชนะ 17..24 -----
+            if id_count >= 24 and have_all(1, 24):
+                winners_round_8_inputs = [winners.get(mid) for mid in range(17, 24 + 1)]
+                self.tournament32.update_round_8_buttons(winners_round_8_inputs)
 
-                self.tournament32.update_round_16_buttons(winners_round_32)
+            # ----- R8 -> R4: ต้องมีครบ 1..28, ใช้ผู้ชนะ 25..28 -----
+            if id_count >= 28 and have_all(1, 28):
+                winners_round_4_inputs = [winners.get(mid) for mid in range(25, 28 + 1)]
+                self.tournament32.update_round_4_buttons(winners_round_4_inputs)
+
+            # ----- R4 -> R2: ต้องมีครบ 1..30, ใช้ผู้ชนะ 29..30 -----
+            if id_count >= 30 and have_all(1, 30):
+                winners_round_2_inputs = [winners.get(mid) for mid in range(29, 30 + 1)]
+                self.tournament32.update_round_2_buttons(winners_round_2_inputs)
+
+            # ----- Final: ต้องมีครบ 1..31, ใช้ผู้ชนะ 31 -----
+            if id_count >= 31 and have_all(1, 31):
+                champion = winners.get(31)
+                if champion is not None:
+                    # ถ้า UI ต้องรับเป็น list 1 ช่อง เหมือนโค้ดเดิม
+                    self.tournament32.update_winner_button([champion])
+
+            # (ถ้าคุณต้อง "แสดงทีมตั้งต้น" เฉพาะตอนยังอยู่รอบแรกจริง ๆ)
+            if id_count < 16:
+                # ตอนยังไม่มีครบ 16 match ให้เตรียมปุ่มทีม/ผู้ใช้ตามเดิม
                 self.tournament32.fetch_usernames(self.username)
-                self.tournament32.load_team_button(self.username)
-            else:
-                print("ยังไม่มี match id ครบ 32 คู่ ไม่อัพเดทปุ่มรอบ 32")
+                if hasattr(self.tournament32, "load_team_button"):
+                    self.tournament32.load_team_button(self.username)
+
         else:
             print("ยังไม่มี tournament ใน database")
 
+        # เรียกครั้งเดียวพอ (ของเดิมเรียกซ้ำ)
         self.tournament32.fetch_usernames(self.username)
         self.switch_with_animation_from_right(self.tournament32)
+
+
+# ----------------------------------------------------------------- #
+
+    # def switch_to_tournament_32(self):
+    #     self.cursor.execute("SELECT COUNT(*) FROM tournament WHERE username = ?", (self.username,))
+    #     tournament_count = self.cursor.fetchone()[0]
+
+    #     if tournament_count > 0:
+    #         self.cursor.execute("""
+    #             SELECT match_id, winner
+    #             FROM matches
+    #             WHERE username = ?
+    #         """, (self.username,))
+    #         match_results = self.cursor.fetchall()
+
+    #         if len(match_results) == 62:
+    #             match_winners = {match_id: winner for match_id, winner in match_results}
+    #             winner = [None] * 1
+    #             for i in range(0, 2, 2):
+    #                 match_id = (i // 2) + 61
+    #                 if match_id in match_winners and match_winners[match_id]:
+    #                     winner[i // 2] = match_winners[match_id]
+
+    #             self.tournament32.update_winner_button(winner)
+    #             print("อัพเดทปุ่มรอบชิงชนะเลิศเรียบร้อย")
+    #         else:
+    #             print("ยังไม่มี match id ครบ 62 คู่ ไม่อัพเดทปุ่มรอบชิงชนะเลิศ")
+
+    #         if len(match_results) == 60:
+    #             match_winners = {match_id: winner for match_id, winner in match_results}
+    #             winners_round_2 = [None] * 2
+    #             for i in range(0, 4, 2):
+    #                 match_id = (i // 2) + 57
+    #                 if match_id in match_winners and match_winners[match_id]:
+    #                     winners_round_2[i // 2] = match_winners[match_id]
+
+    #             self.tournament32.update_round_2_buttons(winners_round_2)
+    #             print("อัพเดทปุ่มรอบ 2 ทีมเรียบร้อย")
+    #         else:
+    #             print("ยังไม่มี match id ครบ 60 คู่ ไม่อัพเดทปุ่มรอบ 2")
+
+    #         if len(match_results) == 56:
+    #             match_winners = {match_id: winner for match_id, winner in match_results}
+    #             winners_round_4 = [None] * 4
+    #             for i in range(0, 8, 2):
+    #                 match_id = (i // 2) + 49
+    #                 if match_id in match_winners and match_winners[match_id]:
+    #                     winners_round_4[i // 2] = match_winners[match_id]
+
+    #             self.tournament32.update_round_4_buttons(winners_round_4)
+    #             print("อัพเดทปุ่มรอบ 4 ทีมเรียบร้อย")
+    #         else:
+    #             print("ยังไม่มี match id ครบ 56 คู่ ไม่อัพเดทปุ่มรอบ 4")
+
+    #         if len(match_results) == 48:
+    #             match_winners = {match_id: winner for match_id, winner in match_results}
+    #             winners_round_8 = [None] * 8
+    #             for i in range(0, 16, 2):
+    #                 match_id = (i // 2) + 33
+    #                 if match_id in match_winners and match_winners[match_id]:
+    #                     winners_round_8[i // 2] = match_winners[match_id]
+
+    #                 self.tournament32.update_round_8_buttons(winners_round_8)
+    #                 print("อัพเดทปุ่มรอบ 8 ทีมเรียบร้อย")
+    #         else:
+    #             print("ยังไม่มี match id ครบ 48 คู่ ไม่อัพเดทปุ่มรอบ 8")
+
+
+    #         if len(match_results) == 32:
+    #             match_winners = {match_id: winner for match_id, winner in match_results}
+    #             winners_round_32 = [None] * 16
+    #             for i in range(0, 32, 2):
+    #                 match_id = (i // 2) + 1
+    #                 if match_id in match_winners and match_winners[match_id]:
+    #                     winners_round_32[i // 2] = match_winners[match_id]
+
+    #             self.tournament32.update_round_16_buttons(winners_round_32)
+    #             self.tournament32.fetch_usernames(self.username)
+    #             self.tournament32.load_team_button(self.username)
+    #         else:
+    #             print("ยังไม่มี match id ครบ 32 คู่ ไม่อัพเดทปุ่มรอบ 32")
+
+    #     else:
+    #         print("ยังไม่มี tournament ใน database")
+
+    #     self.tournament32.fetch_usernames(self.username)
+    #     self.switch_with_animation_from_right(self.tournament32)
 
 # ----------------------------------------------------------------- #
 
