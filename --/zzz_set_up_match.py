@@ -822,6 +822,78 @@ class Set_up_match(QMainWindow):
                     self.select_team2_player5_combobox.setCurrentIndex(-1)
                     return
 
+    def _get_played_team_ids(self) -> set[int]:
+        """
+        คืนค่า set ของ team_id ที่เคยมีแมตช์แล้ว (ในตาราง matches)
+        ถ้ามีคอลัมน์ username จะกรองตาม self.username ด้วย
+        """
+        played: set[int] = set()
+        try:
+            # ถ้า matches มีคอลัมน์ username
+            self.cursor.execute("SELECT team1_id, team2_id FROM matches WHERE username = ?", (self.username,))
+        except sqlite3.OperationalError:
+            # เผื่อกรณีไม่มีคอลัมน์ username
+            try:
+                self.cursor.execute("SELECT team1_id, team2_id FROM matches")
+            except sqlite3.OperationalError:
+                # ยังไม่มีตาราง matches
+                return played
+
+        for t1, t2 in self.cursor.fetchall():
+            if t1 is not None:
+                played.add(t1)
+            if t2 is not None:
+                played.add(t2)
+        return played
+
+
+    # def get_username(self, username):
+    #     self.select_team_combobox.clear()
+    #     self.select_team1_combobox.clear()
+    #     self.select_team2_combobox.clear()
+
+    #     self.username = username
+
+    #     self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username = ?', (self.username,))
+    #     teams = self.cursor.fetchall()
+
+
+    #     self.match_pairs = []
+
+    #     if len(teams) % 2 == 0:
+    #         for i in range(0, len(teams), 2):
+    #             team1_name, team1_id = teams[i]
+    #             team2_name, team2_id = teams[i + 1]
+    #             match_pair = f"{team1_name} vs {team2_name}"
+    #             self.select_team_combobox.addItem(match_pair)
+    #             self.match_pairs.append((team1_name, team1_id, team2_name, team2_id))
+    #     else:
+    #         print("จำนวนทีมไม่เป็นเลขคู่ ไม่สามารถจับคู่ได้")
+
+    #     self.select_team_combobox.setCurrentIndex(-1)
+
+    #     self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username = ?', (self.username,))
+    #     self.team1_list = self.cursor.fetchall()
+    #     for team in self.team1_list:
+    #         self.select_team1_combobox.addItem(team[0])
+    #     self.team1_id = self.team1_list[0][1]
+
+    #     self.select_team1_combobox.setCurrentIndex(-1)
+    #     self.select_team1_combobox.currentIndexChanged.connect(self.check_team1_selected)
+    #     print('team1 current index in get username: ',self.select_team1_combobox.currentIndex())
+
+    #     self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username = ?', (self.username,))
+    #     self.team2_list = self.cursor.fetchall()
+    #     for team in self.team2_list:
+    #         self.select_team2_combobox.addItem(team[0])
+    #     self.team2_id = self.team2_list[0][1]
+
+    #     self.select_team2_combobox.setCurrentIndex(-1)
+    #     self.select_team2_combobox.currentIndexChanged.connect(self.check_team2_selected)
+    #     print('team2 current index : ',self.select_team2_combobox.currentIndex())
+
+    #     self.select_team_combobox.currentIndexChanged.connect(self.update_selected_teams)
+
     def get_username(self, username):
         self.select_team_combobox.clear()
         self.select_team1_combobox.clear()
@@ -829,45 +901,57 @@ class Set_up_match(QMainWindow):
 
         self.username = username
 
+        # ดึงทีมของ user ทั้งหมด
         self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username = ?', (self.username,))
         teams = self.cursor.fetchall()
 
+        # ✅ ดึงทีมที่แข่งไปแล้ว
+        played_ids = self._get_played_team_ids()
 
         self.match_pairs = []
 
+        # สร้างคู่ (จับเป็น 1v2, 3v4, ...) แต่ "ข้าม" ถ้ามีทีมใดในคู่นั้นแข่งแล้ว
         if len(teams) % 2 == 0:
             for i in range(0, len(teams), 2):
                 team1_name, team1_id = teams[i]
                 team2_name, team2_id = teams[i + 1]
-                match_pair = f"{team1_name} vs {team2_name}"
-                self.select_team_combobox.addItem(match_pair)
+
+                # ✅ ถ้าทีมใดทีมหนึ่งแข่งแล้ว ให้ข้าม ไม่ใส่ลง combobox
+                if team1_id in played_ids or team2_id in played_ids:
+                    continue
+
+                self.select_team_combobox.addItem(f"{team1_name} vs {team2_name}")
                 self.match_pairs.append((team1_name, team1_id, team2_name, team2_id))
         else:
             print("จำนวนทีมไม่เป็นเลขคู่ ไม่สามารถจับคู่ได้")
 
         self.select_team_combobox.setCurrentIndex(-1)
 
+        # เติม combobox team1/2 แบบ "คัดกรองทีมที่แข่งแล้วออก"
         self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username = ?', (self.username,))
-        self.team1_list = self.cursor.fetchall()
+        all_team1_list = self.cursor.fetchall()
+        self.team1_list = [t for t in all_team1_list if t[1] not in played_ids]
         for team in self.team1_list:
             self.select_team1_combobox.addItem(team[0])
-        self.team1_id = self.team1_list[0][1]
-
+        if self.team1_list:
+            self.team1_id = self.team1_list[0][1]
         self.select_team1_combobox.setCurrentIndex(-1)
         self.select_team1_combobox.currentIndexChanged.connect(self.check_team1_selected)
-        print('team1 current index in get username: ',self.select_team1_combobox.currentIndex())
+        print('team1 current index in get username: ', self.select_team1_combobox.currentIndex())
 
         self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username = ?', (self.username,))
-        self.team2_list = self.cursor.fetchall()
+        all_team2_list = self.cursor.fetchall()
+        self.team2_list = [t for t in all_team2_list if t[1] not in played_ids]
         for team in self.team2_list:
             self.select_team2_combobox.addItem(team[0])
-        self.team2_id = self.team2_list[0][1]
-
+        if self.team2_list:
+            self.team2_id = self.team2_list[0][1]
         self.select_team2_combobox.setCurrentIndex(-1)
         self.select_team2_combobox.currentIndexChanged.connect(self.check_team2_selected)
-        print('team2 current index : ',self.select_team2_combobox.currentIndex())
+        print('team2 current index : ', self.select_team2_combobox.currentIndex())
 
         self.select_team_combobox.currentIndexChanged.connect(self.update_selected_teams)
+
 
     def update_selected_teams(self):
         index = self.select_team_combobox.currentIndex()
