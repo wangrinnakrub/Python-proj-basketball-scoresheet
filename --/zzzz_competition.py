@@ -217,7 +217,7 @@ class Competition(QMainWindow):
 
         self.total_score_team1 = 0
         self.total_score_team2 = 0
-        
+
         self.team1 = 00
         self.team2 = 00
         self.period = 1
@@ -714,7 +714,7 @@ class Competition(QMainWindow):
                 font-family: Saira Condensed;
                 font-weight: 780;
                 font-size: 20px;
-            }period 2 นับต่อ จาก period 1
+            }
             QPushButton#score_3_team2_button:hover{
                 background: #b2b2b2;
                 color: white;
@@ -2038,6 +2038,24 @@ class Competition(QMainWindow):
         self.winner_name.hide()
 
 
+    def update_foul_labels(self):
+        # ทีม 1: ปุ่มตัวจริง 1-5
+        for slot_name in ["player1_team1", "player2_team1", "player3_team1", "player4_team1", "player5_team1"]:
+            btn = self.findChild(QPushButton, slot_name)
+            lbl = self.findChild(QLabel, f"foul_{slot_name}")  # ชื่อ label = 'foul_' + ชื่อปุ่ม
+            if btn and lbl:
+                number = btn.text()
+                count = self.foul_history_team1.get(number, 0)
+                lbl.setText(str(count))
+
+        # ทีม 2: ปุ่มตัวจริง 1-5
+        for slot_name in ["player1_team2", "player2_team2", "player3_team2", "player4_team2", "player5_team2"]:
+            btn = self.findChild(QPushButton, slot_name)
+            lbl = self.findChild(QLabel, f"foul_{slot_name}")
+            if btn and lbl:
+                number = btn.text()
+                count = self.foul_history_team2.get(number, 0)
+                lbl.setText(str(count))
 
     def get_team_name(self, team_id):
         """
@@ -2082,20 +2100,72 @@ class Competition(QMainWindow):
 
         print(f"✅ Updated winner for match_id {match_id}: {winner}")
 
-    def calculate_final_winner(self):
-        team1_wins = self.period_winners.count("Team 1")
-        team2_wins = self.period_winners.count("Team 2")
+    # def calculate_final_winner(self):
+    #     team1_wins = self.period_winners.count("Team 1")
+    #     team2_wins = self.period_winners.count("Team 2")
 
-        if team1_wins > team2_wins:
-            final_winner = self.get_team_name(self.team1_id)  # ดึงชื่อทีมจาก team1_id
+    #     if team1_wins > team2_wins:
+    #         final_winner = self.get_team_name(self.team1_id)  # ดึงชื่อทีมจาก team1_id
+    #         self.update_match_winner(self.match_id, final_winner)
+    #     elif team2_wins > team1_wins:
+    #         final_winner = self.get_team_name(self.team2_id)  # ดึงชื่อทีมจาก team2_id
+    #         self.update_match_winner(self.match_id, final_winner)
+    #     else:
+    #         final_winner = "Draw"
+
+    #     # แสดงผลผู้ชนะใน UI
+    #     self.winner.show()
+    #     if final_winner == "Draw":
+    #         self.winner_name.setText("Draw")
+    #         self.winner_name.setStyleSheet('''QLabel#winner_name{
+    #             background: transparent;
+    #             color: #ff2525;
+    #             font-family: Saira Condensed;
+    #             font-weight: 780;
+    #             font-size: 20px;
+    #         }''')
+    #     else:
+    #         self.winner_name.setText(final_winner)
+    #         self.winner_name.setStyleSheet('''QLabel#winner_name{
+    #             background: transparent;
+    #             color: #00d527;
+    #             font-family: Saira Condensed;
+    #             font-weight: 780;
+    #             font-size: 20px;
+    #         }''')
+    #     self.winner_name.show()
+
+    #     print(f"Final Winner: {final_winner}")
+    #     QMessageBox.information(self, "Final Winner", f"The final winner is: {final_winner}")
+    #     self.go_to_tournament32_button.show()
+
+    def calculate_final_winner(self):
+        """
+        ตัดสินผู้ชนะจากผลของ period สุดท้ายเท่านั้น
+        - ถ้า period สุดท้าย Team 1 ชนะ -> บันทึกชื่อทีม 1
+        - ถ้า period สุดท้าย Team 2 ชนะ -> บันทึกชื่อทีม 2
+        - ถ้าเสมอ -> Draw
+        """
+        # เผื่อกรณี edge case ยังไม่มีการบันทึก winner ของช่วงก่อนหน้า
+        if not self.period_winners:
+            # fallback จากสกอร์ปัจจุบันในจอ
+            t1 = int(self.score_team1.text())
+            t2 = int(self.score_team2.text())
+            last_period_winner = "Team 1" if t1 > t2 else ("Team 2" if t2 > t1 else "Draw")
+        else:
+            # ผู้ชนะของ period สุดท้าย
+            last_period_winner = self.period_winners[-1]
+
+        if last_period_winner == "Team 1":
+            final_winner = self.get_team_name(self.team1_id)
             self.update_match_winner(self.match_id, final_winner)
-        elif team2_wins > team1_wins:
-            final_winner = self.get_team_name(self.team2_id)  # ดึงชื่อทีมจาก team2_id
+        elif last_period_winner == "Team 2":
+            final_winner = self.get_team_name(self.team2_id)
             self.update_match_winner(self.match_id, final_winner)
         else:
             final_winner = "Draw"
 
-        # แสดงผลผู้ชนะใน UI
+        # อัปเดต UI
         self.winner.show()
         if final_winner == "Draw":
             self.winner_name.setText("Draw")
@@ -2117,9 +2187,10 @@ class Competition(QMainWindow):
             }''')
         self.winner_name.show()
 
-        print(f"Final Winner: {final_winner}")
+        print(f"Final Winner (by last period): {final_winner}")
         QMessageBox.information(self, "Final Winner", f"The final winner is: {final_winner}")
         self.go_to_tournament32_button.show()
+
 
     def show_period_summary(self):
         if self.period == 1:
@@ -2391,6 +2462,8 @@ class Competition(QMainWindow):
             print(f"Setting button {button.objectName()} to player {player}")
             button.setText(str(player))
 
+        self.update_foul_labels()
+
     def check_player_click(self, player_name):
         if self.foul_mode_active:
             if self.selected_foul_team == "team1" and player_name in [
@@ -2639,6 +2712,7 @@ class Competition(QMainWindow):
                 print(f"Team 1 Substitution History: {self.substitution_history_team1}")
                 print(f"Team 2 Substitution History: {self.substitution_history_team2}")
                 self.insert_substitution(self.match_id, team_id, self.selected_player_out, self.selected_player_in, time_str)
+                self.update_foul_labels()
 
     def timeout(self, team):
         minutes, seconds = self.format_time(self.current_time)
@@ -2979,6 +3053,7 @@ class Competition(QMainWindow):
         minutes, seconds = self.format_time(self.current_time)
         time_str = f"{minutes:02d}:{seconds:02d}"
         self.insert_foul(self.match_id, team, player_number, time_str)
+        self.update_foul_labels()
 
     def increment_foul(self, team):
         if self.foul_mode_active:
@@ -3167,6 +3242,8 @@ class Competition(QMainWindow):
         self.timer_button.set_play_icon()
 
         print(f"Values for period {self.period} have been reset!")
+
+        self.update_foul_labels()
 
     def timer_button_clicked(self):
         if self.period == 1:

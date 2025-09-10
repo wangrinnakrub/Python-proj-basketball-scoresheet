@@ -268,69 +268,113 @@ class MainApp(QStackedWidget):
         self.switch_with_animation_from_right(self.create_team)
 
 # ----------------------------------------------------------------- #
+    # def switch_to_tournament_32(self):
+    #     # 1) เช็คว่ามีทัวร์นาเมนต์ของ user มั้ย
+    #     self.cursor.execute("SELECT COUNT(*) FROM tournament WHERE username = ?", (self.username,))
+    #     tournament_count = self.cursor.fetchone()[0]
+
+    #     if tournament_count > 0:
+    #     # 2) โหลด (match_id, winner) ทั้งหมดของ user
+    #         self.cursor.execute("""
+    #             SELECT match_id, winner
+    #             FROM matches
+    #             WHERE username = ?
+    #         """, (self.username,))
+    #         rows = self.cursor.fetchall()
+
+    #         # เซ็ตข้อมูลช่วย
+    #         id_set = {mid for mid, _ in rows}
+    #         winners = {mid: w for mid, w in rows if w}  # เอาเฉพาะที่มีผู้ชนะแล้ว (None/"" จะไม่เอา)
+    #         id_count = len(id_set)
+
+    #         def have_all(a, b):
+    #             # มีทุก match_id ตั้งแต่ a..b ครบไหม
+    #             return all(mid in id_set for mid in range(a, b + 1))
+
+    #         # ----- R32 -> R16: ต้องมีแมตช์ครบ 1..16, ใช้ผู้ชนะ 1..16 -----
+    #         if id_count >= 16 and have_all(1, 16):
+    #             winners_round_16_inputs = [winners.get(mid) for mid in range(1, 16 + 1)]
+    #             self.tournament32.update_round_16_buttons(winners_round_16_inputs)
+
+    #         # ----- R16 -> R8: ต้องมีครบ 1..24, ใช้ผู้ชนะ 17..24 -----
+    #         if id_count >= 24 and have_all(1, 24):
+    #             winners_round_8_inputs = [winners.get(mid) for mid in range(17, 24 + 1)]
+    #             self.tournament32.update_round_8_buttons(winners_round_8_inputs)
+
+    #         # ----- R8 -> R4: ต้องมีครบ 1..28, ใช้ผู้ชนะ 25..28 -----
+    #         if id_count >= 28 and have_all(1, 28):
+    #             winners_round_4_inputs = [winners.get(mid) for mid in range(25, 28 + 1)]
+    #             self.tournament32.update_round_4_buttons(winners_round_4_inputs)
+
+    #         # ----- R4 -> R2: ต้องมีครบ 1..30, ใช้ผู้ชนะ 29..30 -----
+    #         if id_count >= 30 and have_all(1, 30):
+    #             winners_round_2_inputs = [winners.get(mid) for mid in range(29, 30 + 1)]
+    #             self.tournament32.update_round_2_buttons(winners_round_2_inputs)
+
+    #         # ----- Final: ต้องมีครบ 1..31, ใช้ผู้ชนะ 31 -----
+    #         if id_count >= 31 and have_all(1, 31):
+    #             champion = winners.get(31)
+    #             if champion is not None:
+    #                 # ถ้า UI ต้องรับเป็น list 1 ช่อง เหมือนโค้ดเดิม
+    #                 self.tournament32.update_winner_button([champion])
+
+    #         # (ถ้าคุณต้อง "แสดงทีมตั้งต้น" เฉพาะตอนยังอยู่รอบแรกจริง ๆ)
+    #         if id_count < 16:
+    #             # ตอนยังไม่มีครบ 16 match ให้เตรียมปุ่มทีม/ผู้ใช้ตามเดิม
+    #             self.tournament32.fetch_usernames(self.username)
+    #             if hasattr(self.tournament32, "load_team_button"):
+    #                 self.tournament32.load_team_button(self.username)
+
+    #     else:
+    #         print("ยังไม่มี tournament ใน database")
+
+    #     # เรียกครั้งเดียวพอ (ของเดิมเรียกซ้ำ)
+    #     self.tournament32.fetch_usernames(self.username)
+    #     self.switch_with_animation_from_right(self.tournament32)
+
     def switch_to_tournament_32(self):
-        # 1) เช็คว่ามีทัวร์นาเมนต์ของ user มั้ย
+        # เช็คว่ามี tournament ของ user ไหม
         self.cursor.execute("SELECT COUNT(*) FROM tournament WHERE username = ?", (self.username,))
         tournament_count = self.cursor.fetchone()[0]
 
-        if tournament_count > 0:
-        # 2) โหลด (match_id, winner) ทั้งหมดของ user
-            self.cursor.execute("""
-                SELECT match_id, winner
-                FROM matches
-                WHERE username = ?
-            """, (self.username,))
-            rows = self.cursor.fetchall()
-
-            # เซ็ตข้อมูลช่วย
-            id_set = {mid for mid, _ in rows}
-            winners = {mid: w for mid, w in rows if w}  # เอาเฉพาะที่มีผู้ชนะแล้ว (None/"" จะไม่เอา)
-            id_count = len(id_set)
-
-            def have_all(a, b):
-                # มีทุก match_id ตั้งแต่ a..b ครบไหม
-                return all(mid in id_set for mid in range(a, b + 1))
-
-            # ----- R32 -> R16: ต้องมีแมตช์ครบ 1..16, ใช้ผู้ชนะ 1..16 -----
-            if id_count >= 16 and have_all(1, 16):
-                winners_round_16_inputs = [winners.get(mid) for mid in range(1, 16 + 1)]
-                self.tournament32.update_round_16_buttons(winners_round_16_inputs)
-
-            # ----- R16 -> R8: ต้องมีครบ 1..24, ใช้ผู้ชนะ 17..24 -----
-            if id_count >= 24 and have_all(1, 24):
-                winners_round_8_inputs = [winners.get(mid) for mid in range(17, 24 + 1)]
-                self.tournament32.update_round_8_buttons(winners_round_8_inputs)
-
-            # ----- R8 -> R4: ต้องมีครบ 1..28, ใช้ผู้ชนะ 25..28 -----
-            if id_count >= 28 and have_all(1, 28):
-                winners_round_4_inputs = [winners.get(mid) for mid in range(25, 28 + 1)]
-                self.tournament32.update_round_4_buttons(winners_round_4_inputs)
-
-            # ----- R4 -> R2: ต้องมีครบ 1..30, ใช้ผู้ชนะ 29..30 -----
-            if id_count >= 30 and have_all(1, 30):
-                winners_round_2_inputs = [winners.get(mid) for mid in range(29, 30 + 1)]
-                self.tournament32.update_round_2_buttons(winners_round_2_inputs)
-
-            # ----- Final: ต้องมีครบ 1..31, ใช้ผู้ชนะ 31 -----
-            if id_count >= 31 and have_all(1, 31):
-                champion = winners.get(31)
-                if champion is not None:
-                    # ถ้า UI ต้องรับเป็น list 1 ช่อง เหมือนโค้ดเดิม
-                    self.tournament32.update_winner_button([champion])
-
-            # (ถ้าคุณต้อง "แสดงทีมตั้งต้น" เฉพาะตอนยังอยู่รอบแรกจริง ๆ)
-            if id_count < 16:
-                # ตอนยังไม่มีครบ 16 match ให้เตรียมปุ่มทีม/ผู้ใช้ตามเดิม
-                self.tournament32.fetch_usernames(self.username)
-                if hasattr(self.tournament32, "load_team_button"):
-                    self.tournament32.load_team_button(self.username)
-
-        else:
-            print("ยังไม่มี tournament ใน database")
-
-        # เรียกครั้งเดียวพอ (ของเดิมเรียกซ้ำ)
+        # วางฐานปุ่ม 32 ทีมเสมอ (ถ้าไม่มีทัวร์ก็วางตามข้อมูลผู้ใช้)
         self.tournament32.fetch_usernames(self.username)
+        if hasattr(self.tournament32, "load_team_button"):
+            self.tournament32.load_team_button(self.username)
+
+        if tournament_count == 0:
+            # ยังไม่มีทัวร์ใน DB ก็แสดงฐานเฉยๆ
+            self.switch_with_animation_from_right(self.tournament32)
+            return
+
+        # ดึงผลที่มี (เอาเฉพาะที่มีผู้ชนะจริง ๆ)
+        self.cursor.execute("""
+            SELECT match_id, winner
+            FROM matches
+            WHERE username = ?
+        """, (self.username,))
+        rows = self.cursor.fetchall()
+        winners = {mid: w for mid, w in rows if w not in (None, "", "None")}
+
+        # helper: อัดลิสต์ให้ครบช่วง พร้อมส่งอัปเดตถ้ามีอย่างน้อย 1 ช่องที่ไม่ None
+        def push_range(start, end, fn):
+            items = [winners.get(mid) if winners.get(mid) else None for mid in range(start, end + 1)]
+            if any(items):
+                fn(items)
+
+        # ซ้อนผลรอบถัดๆ ไป (อัปเดตได้แบบ partial)
+        push_range(1, 16,  self.tournament32.update_round_16_buttons)  # จาก R32 -> ปุ่มรอบ 16 ทีม
+        push_range(17, 24, self.tournament32.update_round_8_buttons)   # จาก R16 -> ปุ่มรอบ 8 ทีม
+        push_range(25, 28, self.tournament32.update_round_4_buttons)   # จาก R8  -> ปุ่มรอบ 4 ทีม
+        push_range(29, 30, self.tournament32.update_round_2_buttons)   # จาก R4  -> ปุ่มรอบ 2 ทีม
+
+        champion = winners.get(31)
+        if champion:
+            self.tournament32.update_winner_button([champion])
+
         self.switch_with_animation_from_right(self.tournament32)
+
+
 
 
 # ----------------------------------------------------------------- #
