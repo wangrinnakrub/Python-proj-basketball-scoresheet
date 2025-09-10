@@ -126,6 +126,8 @@ class reset_game(QPushButton):
                 }}
                 """)
 
+
+
         self.clicked.connect(self.on_button_clicked)
 
     def get_current_icon(self):
@@ -213,6 +215,9 @@ class Competition(QMainWindow):
         self.import_style('C:/Users/ASUS/OneDrive/Desktop/code/python/ED251007/project/style_zzzz_competition.qss')
         self.setWindowIcon(QIcon(r"C:\pic\basketball-ball.png"))
 
+        self.total_score_team1 = 0
+        self.total_score_team2 = 0
+        
         self.team1 = 00
         self.team2 = 00
         self.period = 1
@@ -709,7 +714,7 @@ class Competition(QMainWindow):
                 font-family: Saira Condensed;
                 font-weight: 780;
                 font-size: 20px;
-            }
+            }period 2 นับต่อ จาก period 1
             QPushButton#score_3_team2_button:hover{
                 background: #b2b2b2;
                 color: white;
@@ -2874,15 +2879,13 @@ class Competition(QMainWindow):
 
     def increment_score(self, team, points):
         if team == "team1":
-            current_score = int(self.score_team1.text())
-            current_score += points
-            self.score_team1.setText(str(current_score))
-            self.score_team1_all.setText(str(current_score))
+            self.total_score_team1 += points
+            self.score_team1.setText(str(self.total_score_team1))
+            self.score_team1_all.setText(str(self.total_score_team1))
         elif team == "team2":
-            current_score = int(self.score_team2.text())
-            current_score += points
-            self.score_team2.setText(str(current_score))
-            self.score_team2_all.setText(str(current_score))
+            self.total_score_team2 += points
+            self.score_team2.setText(str(self.total_score_team2))
+            self.score_team2_all.setText(str(self.total_score_team2))
 
     def record_foul(self, team, player_name):
         player_number = self.findChild(QPushButton, player_name).text()
