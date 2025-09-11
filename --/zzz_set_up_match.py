@@ -822,22 +822,54 @@ class Set_up_match(QMainWindow):
                     self.select_team2_player5_combobox.setCurrentIndex(-1)
                     return
 
+    def _table_exists(self, table: str) -> bool:
+        try:
+            self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+            return self.cursor.fetchone() is not None
+        except sqlite3.OperationalError:
+            return False
+
     def _get_played_team_ids(self) -> set[int]:
         """
-        คืนค่า set ของ team_id ที่เคยมีแมตช์แล้ว (ในตาราง matches)
-        ถ้ามีคอลัมน์ username จะกรองตาม self.username ด้วย
+        คืนค่า team_id ของทีมที่ 'แข่งจบแบบมีผู้ชนะ' แล้วเท่านั้น
+        - ถ้ามีคอลัมน์ is_draw: ใช้ is_draw = 0 เป็นเกณฑ์
+        - ถ้ามีคอลัมน์ winner : winner ต้องไม่ว่าง/ไม่ใช่ 0/ไม่ใช่ 'draw'
+        - ถ้ามีคอลัมน์ team1_score, team2_score: ต้องไม่เท่ากัน
+        - ถ้าไม่มีคอลัมน์พวกนี้เลย จะ fallback เป็นเดิม (ถือว่าทุกแมตช์ที่บันทึก = เล่นแล้ว)
         """
         played: set[int] = set()
+        if not self._table_exists("matches"):
+            return played
+
+        cols = {row[1] for row in self.cursor.execute("PRAGMA table_info(matches)").fetchall()}
+
+        where = []
+        params = []
+
+        # กรองตามผู้ใช้ ถ้ามีคอลัมน์ username
+        if 'username' in cols and hasattr(self, 'username'):
+            where.append("username = ?")
+            params.append(self.username)
+
+        # เกณฑ์ "จบแบบมีผู้ชนะ"
+        if 'is_draw' in cols:
+            where.append("COALESCE(is_draw,0) = 0")  # 0 = ไม่เสมอ
+        elif 'winner' in cols:
+            # winner ต้องมีค่าและไม่ใช่สถานะ draw
+            where.append("(winner IS NOT NULL AND TRIM(CAST(winner AS TEXT)) NOT IN ('', '0', 'draw', 'DRAW', 'tie', 'TIE'))")
+        elif {'team1_score','team2_score'}.issubset(cols):
+            where.append("COALESCE(team1_score, -9999) <> COALESCE(team2_score, -9999)")
+        # else: ไม่มีข้อมูลพอจะรู้ว่าเสมอหรือไม่ → จะถือว่าแมตช์ที่บันทึกไว้ = เล่นแล้ว
+
+        sql = "SELECT team1_id, team2_id FROM matches"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+
         try:
-            # ถ้า matches มีคอลัมน์ username
-            self.cursor.execute("SELECT team1_id, team2_id FROM matches WHERE username = ?", (self.username,))
-        except sqlite3.OperationalError:
-            # เผื่อกรณีไม่มีคอลัมน์ username
-            try:
-                self.cursor.execute("SELECT team1_id, team2_id FROM matches")
-            except sqlite3.OperationalError:
-                # ยังไม่มีตาราง matches
-                return played
+            self.cursor.execute(sql, params)
+        except sqlite3.OperationalError as e:
+            print("SQL error in _get_played_team_ids:", e)
+            return played
 
         for t1, t2 in self.cursor.fetchall():
             if t1 is not None:
@@ -845,6 +877,31 @@ class Set_up_match(QMainWindow):
             if t2 is not None:
                 played.add(t2)
         return played
+
+
+    # def _get_played_team_ids(self) -> set[int]:
+    #     """
+    #     คืนค่า set ของ team_id ที่เคยมีแมตช์แล้ว (ในตาราง matches)
+    #     ถ้ามีคอลัมน์ username จะกรองตาม self.username ด้วย
+    #     """
+    #     played: set[int] = set()
+    #     try:
+    #         # ถ้า matches มีคอลัมน์ username
+    #         self.cursor.execute("SELECT team1_id, team2_id FROM matches WHERE username = ?", (self.username,))
+    #     except sqlite3.OperationalError:
+    #         # เผื่อกรณีไม่มีคอลัมน์ username
+    #         try:
+    #             self.cursor.execute("SELECT team1_id, team2_id FROM matches")
+    #         except sqlite3.OperationalError:
+    #             # ยังไม่มีตาราง matches
+    #             return played
+
+    #     for t1, t2 in self.cursor.fetchall():
+    #         if t1 is not None:
+    #             played.add(t1)
+    #         if t2 is not None:
+    #             played.add(t2)
+    #     return played
 
 
     # def get_username(self, username):
