@@ -492,9 +492,11 @@ class MainApp(QStackedWidget):
 
     def switch_to_competition_from_set_up_match_(self):
         username = self.set_up_match.fetch_username()
-        self.competition.get_username(username)
-        # team1_info = self.set_up_match.get_team1_info()
-        # team2_info = self.set_up_match.get_team2_info()
+        team1_info = self.set_up_match.get_team1_info()
+        team2_info = self.set_up_match.get_team2_info()
+        print('team1_info = ',team1_info)
+        print('team2_info = ',team2_info)
+        self.competition.get_username(username, team1_info, team2_info)
         # self.competition.set_initial_players(team1_info, team2_info)
         self.switch_with_animation_from_right(self.competition)
 

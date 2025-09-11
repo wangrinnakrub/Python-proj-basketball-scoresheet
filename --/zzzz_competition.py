@@ -2401,68 +2401,162 @@ class Competition(QMainWindow):
         print(f"Period {self.period} Winner: {winner}")
         print(f"Period Winners: {self.period_winners}")
 
-    def load_player_numbers(self, username):
-        self.cursor.execute('SELECT team_id FROM teams WHERE username = ?', (username,))
-        teams = self.cursor.fetchall()
+    # def load_player_numbers(self, username, team1_info, team2_info):
+    #     self.cursor.execute('SELECT team_id FROM teams WHERE username = ?', (username,))
+    #     teams = self.cursor.fetchall()
 
-        if len(teams) < 2:
-            QMessageBox.warning(self, "Error", "Not enough teams found for this username.")
-            return
+    #     if len(teams) < 2:
+    #         QMessageBox.warning(self, "Error", "Not enough teams found for this username.")
+    #         return
 
-        team1_id, team2_id = teams[0][0], teams[1][0]
-        self.team1_id, self.team2_id = team1_id, team2_id
+    #     team1_id, team2_id = teams[0][0], teams[1][0]
+    #     self.team1_id, self.team2_id = team1_id, team2_id
 
-        self.cursor.execute('SELECT player_number FROM players WHERE team_id = ?', (team1_id,))
-        team1_players = [player[0] for player in self.cursor.fetchall()]
+    #     self.cursor.execute('SELECT player_number FROM players WHERE team_id = ?', (team1_id,))
+    #     team1_players = [player[0] for player in self.cursor.fetchall()]
 
-        self.cursor.execute('SELECT player_number FROM players WHERE team_id = ?', (team2_id,))
-        team2_players = [player[0] for player in self.cursor.fetchall()]
+    #     self.cursor.execute('SELECT player_number FROM players WHERE team_id = ?', (team2_id,))
+    #     team2_players = [player[0] for player in self.cursor.fetchall()]
 
-        print(f"Team 1 Players: {team1_players}")
-        print(f"Team 2 Players: {team2_players}")
+    #     print(f"Team 1 Players: {team1_players}")
+    #     print(f"Team 2 Players: {team2_players}")
 
-        self.starting_players_team1 = team1_players[:5]
-        self.starting_players_team2 = team2_players[:5]
+    #     self.starting_players_team1 = team1_players[:5]
+    #     self.starting_players_team2 = team2_players[:5]
 
-        self.reserve_players_team1 = team1_players[5:]
-        self.reserve_players_team2 = team2_players[5:]
+    #     self.reserve_players_team1 = team1_players[5:]
+    #     self.reserve_players_team2 = team2_players[5:]
 
-        print(f"Starting players for Team 1: {self.starting_players_team1}")
-        print(f"Reserve players for Team 1: {self.reserve_players_team1}")
-        print(f"Starting players for Team 2: {self.starting_players_team2}")
-        print(f"Reserve players for Team 2: {self.reserve_players_team2}")
+    #     print(f"Starting players for Team 1: {self.starting_players_team1}")
+    #     print(f"Reserve players for Team 1: {self.reserve_players_team1}")
+    #     print(f"Starting players for Team 2: {self.starting_players_team2}")
+    #     print(f"Reserve players for Team 2: {self.reserve_players_team2}")
 
-        self.team1_buttons = [
-            self.player1_team1, self.player2_team1, self.player3_team1,
-            self.player4_team1, self.player5_team1
-        ]
-        for button, player in zip(self.team1_buttons, self.starting_players_team1):
-            button.setText(str(player))
+    #     self.team1_buttons = [
+    #         self.player1_team1, self.player2_team1, self.player3_team1,
+    #         self.player4_team1, self.player5_team1
+    #     ]
+    #     for button, player in zip(self.team1_buttons, self.starting_players_team1):
+    #         button.setText(str(player))
 
-        self.reserve_buttons_team1 = [
-            self.player6_team1, self.player7_team1, self.player8_team1,
-            self.player9_team1, self.player10_team1, self.player11_team1, self.player12_team1
-        ]
-        for button, player in zip(self.reserve_buttons_team1, self.reserve_players_team1):
-            print(f"Setting button {button.objectName()} to player {player}")
-            button.setText(str(player))
+    #     self.reserve_buttons_team1 = [
+    #         self.player6_team1, self.player7_team1, self.player8_team1,
+    #         self.player9_team1, self.player10_team1, self.player11_team1, self.player12_team1
+    #     ]
+    #     for button, player in zip(self.reserve_buttons_team1, self.reserve_players_team1):
+    #         print(f"Setting button {button.objectName()} to player {player}")
+    #         button.setText(str(player))
 
-        self.team2_buttons = [
-            self.player1_team2, self.player2_team2, self.player3_team2,
-            self.player4_team2, self.player5_team2
-        ]
-        for button, player in zip(self.team2_buttons, self.starting_players_team2):
-            button.setText(str(player))
+    #     self.team2_buttons = [
+    #         self.player1_team2, self.player2_team2, self.player3_team2,
+    #         self.player4_team2, self.player5_team2
+    #     ]
+    #     for button, player in zip(self.team2_buttons, self.starting_players_team2):
+    #         button.setText(str(player))
 
-        self.reserve_buttons_team2 = [
-            self.player6_team2, self.player7_team2, self.player8_team2,
-            self.player9_team2, self.player10_team2, self.player11_team2, self.player12_team2
-        ]
-        for button, player in zip(self.reserve_buttons_team2, self.reserve_players_team2):
-            print(f"Setting button {button.objectName()} to player {player}")
-            button.setText(str(player))
+    #     self.reserve_buttons_team2 = [
+    #         self.player6_team2, self.player7_team2, self.player8_team2,
+    #         self.player9_team2, self.player10_team2, self.player11_team2, self.player12_team2
+    #     ]
+    #     for button, player in zip(self.reserve_buttons_team2, self.reserve_players_team2):
+    #         print(f"Setting button {button.objectName()} to player {player}")
+    #         button.setText(str(player))
 
-        self.update_foul_labels()
+    #     self.update_foul_labels()
+
+
+def load_player_numbers(self, team1_info: dict, team2_info: dict):
+    # 1) เก็บ team_id
+    self.team1_id = team1_info['team1_id']
+    self.team2_id = team2_info['team2_id']
+
+    # 2) ตั้งชื่อทีมให้ label ในหน้า competition (เปลี่ยนชื่อ widget ให้ตรงของจริง)
+    if hasattr(self, 'team1_name_label'):
+        self.team1_name_label.setText(str(team1_info.get('team1_name', '')))
+    if hasattr(self, 'team2_name_label'):
+        self.team2_name_label.setText(str(team2_info.get('team2_name', '')))
+
+    # 3) ดึงรายชื่อเบอร์ทั้งหมดของแต่ละทีมจาก DB (ไว้ทำสำรอง/ตัวสำรอง)
+    def fetch_all_numbers(team_id: int):
+        self.cursor.execute('SELECT player_number FROM players WHERE team_id = ?', (team_id,))
+        return [str(r[0]) for r in self.cursor.fetchall()]
+
+    all_t1 = fetch_all_numbers(self.team1_id)
+    all_t2 = fetch_all_numbers(self.team2_id)
+
+    # 4) ตัวจริง 5 คนให้ “ใช้ค่าที่ส่งมา” ก่อน ถ้าไม่ครบ 5 ให้เติมจาก DB
+    starters_t1_from_info = [
+        str(team1_info.get(f'team1_player{i}', '')).strip() for i in range(1, 6)
+    ]
+    starters_t2_from_info = [
+        str(team2_info.get(f'team2_player{i}', '')).strip() for i in range(1, 6)
+    ]
+
+    def build_starters(all_numbers: list[str], starters_from_info: list[str]) -> list[str]:
+        chosen = [n for n in starters_from_info if n and n != '0']
+        # เติมให้ครบ 5 จากเบอร์ที่เหลือในทีม
+        for n in all_numbers:
+            if len(chosen) == 5:
+                break
+            if n not in chosen:
+                chosen.append(n)
+        # ถ้ายังไม่ครบ (ทีมมีผู้เล่นน้อย) ให้เติมช่องว่าง
+        while len(chosen) < 5:
+            chosen.append('')
+        return chosen[:5]
+
+    starters_t1 = build_starters(all_t1, starters_t1_from_info)
+    starters_t2 = build_starters(all_t2, starters_t2_from_info)
+
+    # 5) ตัวสำรอง = ทั้งทีมลบตัวจริง (คงลำดับจาก DB)
+    reserves_t1 = [n for n in all_t1 if n not in set(starters_t1)]
+    reserves_t2 = [n for n in all_t2 if n not in set(starters_t2)]
+
+    self.starting_players_team1 = starters_t1
+    self.starting_players_team2 = starters_t2
+    self.reserve_players_team1 = reserves_t1
+    self.reserve_players_team2 = reserves_t2
+
+    # 6) ตั้งค่าปุ่มตัวจริงทีม 1
+    team1_starter_buttons = [
+        self.player1_team1, self.player2_team1, self.player3_team1,
+        self.player4_team1, self.player5_team1
+    ]
+    for btn, num in zip(team1_starter_buttons, starters_t1):
+        btn.setText(str(num))
+
+    # ปุ่มตัวสำรองทีม 1
+    team1_reserve_buttons = [
+        self.player6_team1, self.player7_team1, self.player8_team1,
+        self.player9_team1, self.player10_team1, self.player11_team1, self.player12_team1
+    ]
+    for btn, num in zip(team1_reserve_buttons, reserves_t1):
+        btn.setText(str(num))
+    for btn in team1_reserve_buttons[len(reserves_t1):]:
+        btn.setText('')  # เคลียร์ถ้าไม่มีผู้เล่นพอ
+
+    # 7) ตั้งค่าปุ่มตัวจริงทีม 2
+    team2_starter_buttons = [
+        self.player1_team2, self.player2_team2, self.player3_team2,
+        self.player4_team2, self.player5_team2
+    ]
+    for btn, num in zip(team2_starter_buttons, starters_t2):
+        btn.setText(str(num))
+
+    # ปุ่มตัวสำรองทีม 2
+    team2_reserve_buttons = [
+        self.player6_team2, self.player7_team2, self.player8_team2,
+        self.player9_team2, self.player10_team2, self.player11_team2, self.player12_team2
+    ]
+    for btn, num in zip(team2_reserve_buttons, reserves_t2):
+        btn.setText(str(num))
+    for btn in team2_reserve_buttons[len(reserves_t2):]:
+        btn.setText('')
+
+    # 8) อัปเดตฟาวล์หรือส่วนอื่น ๆ ต่อ
+    self.update_foul_labels()
+
+
 
     def check_player_click(self, player_name):
         if self.foul_mode_active:
@@ -3331,9 +3425,9 @@ class Competition(QMainWindow):
         seconds = seconds % 60
         return minutes, seconds
 
-    def get_username(self,username):
+    def get_username(self,username,team1_info,team2_info):
         self.username = username
-        self.load_player_numbers(username)
+        self.load_player_numbers(team1_info,team2_info)
 
     # def set_initial_players(self, team1_info, team2_info):
     #     # ตั้งค่าผู้เล่นเริ่มต้น 5 คนของทีม 1

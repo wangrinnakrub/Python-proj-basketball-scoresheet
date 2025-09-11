@@ -470,7 +470,7 @@ class Set_up_match(QMainWindow):
             print("Team selected : ", team1_selected)
 
             self.team1_id = self.team1_list[index][1]
-            print('Updated team1 id = ', self.team1_id)
+            print(f'Updated team1 name {team1_selected} id = {self.team1_id} ')
 
             # ล้างข้อมูลใน QComboBox ของผู้เล่น
             self.select_team1_player1_combobox.clear()
