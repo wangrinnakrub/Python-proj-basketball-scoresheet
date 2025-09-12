@@ -167,7 +167,7 @@ class History(QMainWindow):
         self.select_team_combobox.clear()
 
         query = """
-            SELECT m.match_id, t1.team_name, t2.team_name, m.winner
+            SELECT m.match_id, t1.team_name, t2.team_name
             FROM matches m
             JOIN teams t1 ON m.team1_id = t1.team_id
             JOIN teams t2 ON m.team2_id = t2.team_id
@@ -176,11 +176,10 @@ class History(QMainWindow):
         self.cursor.execute(query, (self.username,))
         matches = self.cursor.fetchall()
 
-        for match_id, team1_name, team2_name, winner in matches:
+        for match_id, team1_name, team2_name in matches:
             display_text = f"{team1_name} vs {team2_name}"
-            if winner and str(winner).strip().lower() == "draw":
-                display_text += " draw"  # ← ต่อท้ายตามที่ต้องการ
             self.select_team_combobox.addItem(display_text, userData=match_id)
+
 
     def is_valid_file_name(self, file_name):
         if not file_name.strip():
@@ -202,6 +201,34 @@ class History(QMainWindow):
 
         return True, "File name is valid."
 
+
+    # def on_download_button_clicked(self):
+    #     file_name = self.file_name_input_box.text()
+    #     is_valid, message = self.is_valid_file_name(file_name)
+
+    #     if not is_valid:
+    #         QMessageBox.warning(self, "Invalid File Name", message)
+    #         return
+
+    #     save_path, _ = QFileDialog.getSaveFileName(
+    #         self,
+    #         "Save File",
+    #         f"{file_name}.txt",
+    #         "Text Files (*.txt);;All Files (*)"
+    #     )
+
+    #     if not save_path:
+    #         return
+
+    #     try:
+
+    #         with open(save_path, 'w', encoding='utf-8') as file:
+    #             file.write("This is a sample content for the file.")
+    #         QMessageBox.information(self, "Success", f"File saved successfully at:\n{save_path}")
+    #     except Exception as e:
+    #         QMessageBox.critical(self, "Error", f"Failed to save file:\n{str(e)}")
+
+
     def on_download_button_clicked(self):
         file_name = self.file_name_input_box.text()
         is_valid, message = self.is_valid_file_name(file_name)
@@ -210,21 +237,21 @@ class History(QMainWindow):
             QMessageBox.warning(self, "Invalid File Name", message)
             return
 
+        # ดึง match_id ของคู่ที่เลือก
         index = self.select_team_combobox.currentIndex()
         if index == -1:
             QMessageBox.warning(self, "No Match Selected", "Please select a match to download.")
             return
         match_id = self.select_team_combobox.itemData(index)
 
-        # เอาข้อความจากคอมโบ แล้วตัด " draw" ออกถ้ามี
+        # ดึงชื่อทีมจาก combobox (text = "team1 vs team2")
         match_text = self.select_team_combobox.currentText()
-        match_text_clean = re.sub(r'\s+draw\s*$', '', match_text, flags=re.IGNORECASE)
-
-        if " vs " not in match_text_clean:
+        if " vs " not in match_text:
             QMessageBox.warning(self, "Invalid Match", "Invalid match format.")
             return
-        team1_name, team2_name = match_text_clean.split(" vs ", 1)
+        team1_name, team2_name = match_text.split(" vs ", 1)
 
+        # ให้ผู้ใช้เลือก path สำหรับเซฟ PDF
         save_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save PDF",
@@ -236,10 +263,12 @@ class History(QMainWindow):
             return
 
         try:
+            # เรียกใช้ฟังก์ชัน export_match_to_pdf เพื่อสร้าง PDF ที่ save_path
             self.export_match_to_pdf(team1_name, team2_name, output_file=save_path)
             QMessageBox.information(self, "Success", f"PDF saved successfully at:\n{save_path}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save PDF:\n{str(e)}")
+
 
     def export_match_to_pdf(self, team1_name, team2_name, output_file='match_summary_full.pdf'):
         conn = sqlite3.connect("C:/Users/ASUS/OneDrive/Desktop/Dabest/basketball_score_sheet.db")

@@ -524,7 +524,7 @@ class MainApp(QStackedWidget):
                     winners_round_32[i // 2] = winner
 
         self.tournament32.update_round_16_buttons(winners_round_32)
-        self.tournament32.hide_set_up_match_button()
+        # self.tournament32.hide_set_up_match_button()
         self.switch_with_animation_from_right(self.tournament32)
 
 # ----------------------------------------------------------------- #
