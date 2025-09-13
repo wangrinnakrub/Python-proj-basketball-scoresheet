@@ -123,8 +123,6 @@ class MainApp(QStackedWidget):
         # history
         self.history.switch_to_mainwindow_from_history.connect(self.switch_to_mainwindow_from_history)
 
-
-
     def change_to(self,page):
         self.setCurrentWidget(page)
 
@@ -362,6 +360,54 @@ class MainApp(QStackedWidget):
             if any(items):
                 fn(items)
 
+        # อัปเดตรอบถัด ๆ ไปได้แบบ partial
+        push_range(1, 16,  self.tournament32.update_round_16_buttons)  # R32 -> ปุ่มรอบ 16 ทีม
+        push_range(17, 24, self.tournament32.update_round_8_buttons)   # R16 -> ปุ่มรอบ 8 ทีม
+        push_range(25, 28, self.tournament32.update_round_4_buttons)   # R8  -> ปุ่มรอบ 4 ทีม
+        push_range(29, 30, self.tournament32.update_round_2_buttons)   # R4  -> ปุ่มรอบ 2 ทีม
+
+
+        self.tournament32.update_winner_button(None)
+        self.tournament32.update_round_2_buttons(None)
+        self.tournament32.update_round_4_buttons(None)
+        self.tournament32.update_round_8_buttons(None)
+
+        champion = winners.get(31)
+        if champion:
+            self.tournament32.update_winner_button([champion])
+
+        self.switch_with_animation_from_right(self.tournament32)
+
+    def switch_to_tournament_32_old(self):
+        # เช็คว่ามี tournament ของ user ไหม
+        self.cursor.execute("SELECT COUNT(*) FROM tournament WHERE username = ?", (self.username,))
+        tournament_count = self.cursor.fetchone()[0]
+
+        # วางฐานปุ่ม 32 ทีมเสมอ (ถ้าไม่มีทัวร์ก็วางตามข้อมูลผู้ใช้)
+        self.tournament32.fetch_usernames(self.username)
+        if hasattr(self.tournament32, "load_team_button"):
+            self.tournament32.load_team_button(self.username)
+
+        if tournament_count == 0:
+            # ยังไม่มีทัวร์ใน DB ก็แสดงฐานเฉยๆ
+            self.switch_with_animation_from_right(self.tournament32)
+            return
+
+        # ดึงผลที่มี (เอาเฉพาะที่มีผู้ชนะจริง ๆ)
+        self.cursor.execute("""
+            SELECT match_id, winner
+            FROM matches
+            WHERE username = ?
+        """, (self.username,))
+        rows = self.cursor.fetchall()
+        winners = {mid: w for mid, w in rows if w not in (None, "", "None")}
+
+        # helper: อัดลิสต์ให้ครบช่วง พร้อมส่งอัปเดตถ้ามีอย่างน้อย 1 ช่องที่ไม่ None
+        def push_range(start, end, fn):
+            items = [winners.get(mid) if winners.get(mid) else None for mid in range(start, end + 1)]
+            if any(items):
+                fn(items)
+
         # ซ้อนผลรอบถัดๆ ไป (อัปเดตได้แบบ partial)
         push_range(1, 16,  self.tournament32.update_round_16_buttons)  # จาก R32 -> ปุ่มรอบ 16 ทีม
         push_range(17, 24, self.tournament32.update_round_8_buttons)   # จาก R16 -> ปุ่มรอบ 8 ทีม
@@ -490,22 +536,35 @@ class MainApp(QStackedWidget):
         self.set_up_match.select_team_disconnect()
         self.switch_with_animation_from_left(self.tournament32)
 
+    # def switch_to_competition_from_set_up_match_(self):
+    #     username = self.set_up_match.fetch_username()
+    #     team1_info = self.set_up_match.get_team1_info()
+    #     team2_info = self.set_up_match.get_team2_info()
+    #     print('team1_info = ',team1_info)
+    #     print('team2_info = ',team2_info)
+    #     self.competition.get_username(username, team1_info, team2_info)
+    #     # self.competition.set_initial_players(team1_info, team2_info)
+    #     self.switch_with_animation_from_right(self.competition)
+
     def switch_to_competition_from_set_up_match_(self):
+        # ดึงข้อมูลจากหน้า Set Up Match
         username = self.set_up_match.fetch_username()
         team1_info = self.set_up_match.get_team1_info()
         team2_info = self.set_up_match.get_team2_info()
-        print('team1_info = ',team1_info)
-        print('team2_info = ',team2_info)
+
+        self.competition.reset_values()
+
+        # ส่งข้อมูลผู้ใช้และทีมเข้า Competition แล้วค่อยสลับหน้า
         self.competition.get_username(username, team1_info, team2_info)
-        # self.competition.set_initial_players(team1_info, team2_info)
         self.switch_with_animation_from_right(self.competition)
+
 
 # ----------------------------------------------------------------- #
 
     def switch_to_match_set_up_from_competition_(self):
         self.switch_with_animation_from_left(self.set_up_match)
 
-    def switch_to_tournament_32_from_competition_(self):
+    def switch_to_tournament_32_from_competition_old(self):
         self.cursor.execute("""
             SELECT match_id, winner
             FROM matches
@@ -523,9 +582,49 @@ class MainApp(QStackedWidget):
                 if winner:
                     winners_round_32[i // 2] = winner
 
-        self.tournament32.update_round_16_buttons(winners_round_32)
+        self.tournament32.update_round_16_buttons
         # self.tournament32.hide_set_up_match_button()
         self.switch_with_animation_from_right(self.tournament32)
+
+    def switch_to_tournament_32_from_competition_(self):
+        # วางฐานปุ่ม 32 ทีม (รายชื่อทีมเดิม)
+        self.tournament32.fetch_usernames(self.username)
+        if hasattr(self.tournament32, "load_team_button"):
+            self.tournament32.load_team_button(self.username)
+
+        # ดึงผลที่มี และกรองค่า winner ที่ว่าง/None ออก
+        self.cursor.execute("""
+            SELECT match_id, winner
+            FROM matches
+            WHERE username = ?
+        """, (self.username,))
+        rows = self.cursor.fetchall()
+        winners = {mid: w for mid, w in rows if w not in (None, "", "None")}
+
+        # helper: อัดลิสต์ช่วง match_id ให้ครบ แล้วค่อยส่งอัปเดตถ้ามีอย่างน้อย 1 ช่อง
+        def push_range(start, end, fn):
+            items = [winners.get(mid) if winners.get(mid) else None
+                    for mid in range(start, end + 1)]
+            if any(items):
+                fn(items)
+
+        # อัปเดตซ้อนรอบต่าง ๆ แบบเดียวกับ switch_to_tournament_32
+        push_range(1, 16,  self.tournament32.update_round_16_buttons)  # R32 → ปุ่มรอบ 16
+        push_range(17, 24, self.tournament32.update_round_8_buttons)   # R16 → ปุ่มรอบ 8
+        push_range(25, 28, self.tournament32.update_round_4_buttons)   # R8  → ปุ่มรอบ 4
+        push_range(29, 30, self.tournament32.update_round_2_buttons)   # R4  → ปุ่มรอบ 2
+
+        self.tournament32.update_winner_button(None)
+        self.tournament32.update_round_2_buttons(None)
+        self.tournament32.update_round_4_buttons(None)
+        self.tournament32.update_round_8_buttons(None)
+
+        champion = winners.get(31)
+        if champion:
+            self.tournament32.update_winner_button([champion])
+
+        self.switch_with_animation_from_right(self.tournament32)
+
 
 # ----------------------------------------------------------------- #
 

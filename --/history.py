@@ -112,6 +112,7 @@ class History(QMainWindow):
         self.select_team_combobox.setObjectName('select_team_combobox')
         self.select_team_combobox.setGeometry(632, 170, 250, 35)
         self.select_team_combobox.setCurrentIndex(-1)
+        self.select_team_combobox.currentIndexChanged.connect(self._sync_filename_from_combo)
 
         self.file_name_label = QLabel('File name', parent)
         self.file_name_label.setObjectName('file_name_label')
@@ -159,6 +160,14 @@ class History(QMainWindow):
             padding: 5px;
         }''')
 
+    def _sync_filename_from_combo(self):
+        text = self.select_team_combobox.currentText().strip()
+        if not text:
+            return
+        # ตัดคำว่า " draw" ด้านท้ายถ้ามี (ไม่สนตัวพิมพ์ใหญ่เล็ก)
+        clean = re.sub(r'\s+draw\s*$', '', text, flags=re.IGNORECASE)
+        # ใส่เป็นชื่อไฟล์เริ่มต้น (ไม่เติมสกุล)
+        self.file_name_input_box.setText(clean)
 
     def load_match_data(self):
         if not hasattr(self, 'username'):
@@ -202,36 +211,83 @@ class History(QMainWindow):
 
         return True, "File name is valid."
 
+    # def on_download_button_clicked(self):
+    #     file_name = self.file_name_input_box.text()
+    #     is_valid, message = self.is_valid_file_name(file_name)
+
+    #     if not is_valid:
+    #         QMessageBox.warning(self, "Invalid File Name", message)
+    #         return
+
+    #     index = self.select_team_combobox.currentIndex()
+    #     if index == -1:
+    #         QMessageBox.warning(self, "No Match Selected", "Please select a match to download.")
+    #         return
+    #     match_id = self.select_team_combobox.itemData(index)
+
+    #     # เอาข้อความจากคอมโบ แล้วตัด " draw" ออกถ้ามี
+    #     match_text = self.select_team_combobox.currentText()
+    #     match_text_clean = re.sub(r'\s+draw\s*$', '', match_text, flags=re.IGNORECASE)
+
+    #     if " vs " not in match_text_clean:
+    #         QMessageBox.warning(self, "Invalid Match", "Invalid match format.")
+    #         return
+    #     team1_name, team2_name = match_text_clean.split(" vs ", 1)
+
+    #     save_path, _ = QFileDialog.getSaveFileName(
+    #         self,
+    #         "Save PDF",
+    #         f"{file_name}.pdf",
+    #         "PDF Files (*.pdf);;All Files (*)"
+    #     )
+
+    #     if not save_path:
+    #         return
+
+    #     try:
+    #         self.export_match_to_pdf(team1_name, team2_name, output_file=save_path)
+    #         QMessageBox.information(self, "Success", f"PDF saved successfully at:\n{save_path}")
+    #     except Exception as e:
+    #         QMessageBox.critical(self, "Error", f"Failed to save PDF:\n{str(e)}")
+
     def on_download_button_clicked(self):
+        # ถ้าผู้ใช้ยังไม่พิมพ์ ให้ดึงจาก combobox มาเป็นค่าเริ่มต้น
+        if not self.file_name_input_box.text().strip():
+            self._sync_filename_from_combo()
+
         file_name = self.file_name_input_box.text()
         is_valid, message = self.is_valid_file_name(file_name)
-
         if not is_valid:
             QMessageBox.warning(self, "Invalid File Name", message)
             return
 
+        # ต้องเลือกแมตช์ก่อน
         index = self.select_team_combobox.currentIndex()
         if index == -1:
             QMessageBox.warning(self, "No Match Selected", "Please select a match to download.")
             return
         match_id = self.select_team_combobox.itemData(index)
 
-        # เอาข้อความจากคอมโบ แล้วตัด " draw" ออกถ้ามี
+        # ดึงข้อความจาก combobox (ตัดคำว่า " draw" ทิ้งก่อนแยกชื่อทีม)
         match_text = self.select_team_combobox.currentText()
         match_text_clean = re.sub(r'\s+draw\s*$', '', match_text, flags=re.IGNORECASE)
-
         if " vs " not in match_text_clean:
             QMessageBox.warning(self, "Invalid Match", "Invalid match format.")
             return
         team1_name, team2_name = match_text_clean.split(" vs ", 1)
 
+        # ค่า default ให้เริ่มที่โฟลเดอร์ Downloads
+        downloads_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DownloadLocation)
+        if not downloads_dir:
+            downloads_dir = QDir.homePath()  # กันเหนียว
+        default_path = QDir(downloads_dir).filePath(f"{file_name}.pdf")
+
         save_path, _ = QFileDialog.getSaveFileName(
             self,
             "Save PDF",
-            f"{file_name}.pdf",
+            default_path,  # ← เริ่มที่ Downloads และใส่ชื่อไฟล์เริ่มต้น
             "PDF Files (*.pdf);;All Files (*)"
         )
-
         if not save_path:
             return
 
@@ -241,131 +297,264 @@ class History(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save PDF:\n{str(e)}")
 
+    # def export_match_to_pdf(self, team1_name, team2_name, output_file='match_summary_full.pdf'):
+    #     conn = sqlite3.connect("C:/Users/ASUS/OneDrive/Desktop/Dabest/basketball_score_sheet.db")
+    #     cursor = conn.cursor()
+
+    #     cursor.execute("SELECT team_id, tournament_name FROM teams WHERE team_name = ?", (team1_name,))
+    #     t1_data = cursor.fetchone()
+    #     cursor.execute("SELECT team_id FROM teams WHERE team_name = ?", (team2_name,))
+    #     t2_data = cursor.fetchone()
+
+    #     if not t1_data or not t2_data:
+    #         print("❌ ไม่เจอทีมในฐานข้อมูล")
+    #         return
+
+    #     team1_id, tournament_name = t1_data
+    #     team2_id = t2_data[0]
+
+    #     cursor.execute("""
+    #         SELECT match_id, match_date FROM matches
+    #         WHERE (team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?)
+    #     """, (team1_id, team2_id, team2_id, team1_id))
+    #     match = cursor.fetchone()
+
+    #     if not match:
+    #         print("❌ ไม่เจอแมตช์ระหว่าง 2 ทีมนี้")
+    #         return
+
+    #     match_id, match_date = match
+
+    #     c = canvas.Canvas(output_file, pagesize=A4)
+    #     width, height = A4
+    #     y = 800
+
+    #     def draw_line(text, size=12, offset=20):
+    #         nonlocal y
+    #         if y < 50:  # ถ้าใกล้ขอบล่างแล้ว
+    #             c.showPage()
+    #             y = 800
+    #             c.setFont("Helvetica", size)
+    #         c.setFont("Helvetica", size)
+    #         c.drawString(50, y, text)
+    #         y -= offset
+
+    #     draw_line("🏀 Tournament Match Summary", 16, 30)
+    #     draw_line(f"Tournament: {tournament_name}")
+    #     draw_line(f"Match ID: {match_id} | Match Date: {match_date}")
+    #     draw_line(f"{team1_name} (ID: {team1_id}) vs {team2_name} (ID: {team2_id})", 14, 25)
+    #     cursor.execute("SELECT winner FROM matches WHERE match_id = ?", (match_id,))
+    #     winner_row = cursor.fetchone()
+    #     if winner_row:
+    #         draw_line(f"🏆 Match Winner: {winner_row[0]}", 13, 25)
+
+    #     draw_line(f"Players for {team1_name}:", 12, 18)
+    #     cursor.execute("SELECT player_name, player_number FROM players WHERE team_id = ?", (team1_id,))
+    #     for name, number in cursor.fetchall():
+    #         draw_line(f" - #{number} {name}", 10, 14)
+
+    #     draw_line(f"Players for {team2_name}:", 12, 18)
+    #     cursor.execute("SELECT player_name, player_number FROM players WHERE team_id = ?", (team2_id,))
+    #     for name, number in cursor.fetchall():
+    #         draw_line(f" - #{number} {name}", 10, 14)
+
+    #     for period in range(1, 5):
+    #         draw_line(f"\nPeriod {period}", 13, 20)
+
+    #         cursor.execute("""
+    #             SELECT team1_score, team2_score, period_winner FROM scores
+    #             WHERE match_id = ? AND period = ?
+    #         """, (match_id, period))
+    #         result = cursor.fetchone()
+    #         if result:
+    #             t1_score, t2_score, winner = result
+    #             draw_line(f"Score: {team1_name} {t1_score} - {t2_score} {team2_name}", 11)
+    #             draw_line(f"Winner: {winner}", 11)
+
+    #         # Timeouts (no LIKE)
+    #         draw_line("Timeouts:", 11)
+    #         cursor.execute("""
+    #             SELECT team_id, time FROM timeouts
+    #             WHERE match_id = ? AND period = ? ORDER BY time DESC
+    #         """, (match_id, period))
+    #         for team_id, time in cursor.fetchall():
+    #             draw_line(f" - Team {team_id} @ {time}", 10)
+
+    #         # Substitutions (no LIKE)
+    #         draw_line("Substitutions:", 11)
+    #         cursor.execute("""
+    #             SELECT team_id, player_out, player_in, time FROM substitutions
+    #             WHERE match_id = ? AND period = ? ORDER BY time DESC
+    #         """, (match_id, period))
+    #         for team_id, player_out, player_in, time in cursor.fetchall():
+    #             draw_line(f" - Team {team_id}: Out {player_out}, In {player_in} @ {time}", 10)
+
+    #         # Fouls (no LIKE)
+    #         # draw_line("Fouls:", 11)
+    #         # cursor.execute("""
+    #         #     SELECT player_id, time FROM fouls
+    #         #     WHERE match_id = ? AND period = ? ORDER BY time DESC
+    #         # """, (match_id, period))
+    #         # for player_id, time in cursor.fetchall():
+    #         #     draw_line(f" - Player {player_id} @ {time}", 10)
+    #         # Fouls (with team name)
+
+    #         draw_line("Fouls:", 11)
+    #         cursor.execute("""
+    #             SELECT player_id, time FROM fouls
+    #             WHERE match_id = ? AND period = ? ORDER BY time DESC
+    #         """, (match_id, period))
+    #         for player_id, time in cursor.fetchall():
+    #             cursor.execute("SELECT team_id FROM players WHERE player_id = ?", (player_id,))
+    #             team_row = cursor.fetchone()
+    #             if team_row:
+    #                 foul_team_id = team_row[0]
+    #                 if foul_team_id == team1_id:
+    #                     foul_team_name = team1_name
+    #                 elif foul_team_id == team2_id:
+    #                     foul_team_name = team2_name
+    #                 else:
+    #                     foul_team_name = f"ID:{foul_team_id}"
+    #             else:
+    #                 foul_team_name = "Unknown"
+    #             draw_line(f" - Player {player_id} ({foul_team_name}) @ {time}", 10)
+
+    #     c.save()
+    #     conn.close()
+    #     print(f"✅ สร้าง PDF เรียบร้อย: {output_file}")
+
     def export_match_to_pdf(self, team1_name, team2_name, output_file='match_summary_full.pdf'):
-        conn = sqlite3.connect("C:/Users/ASUS/OneDrive/Desktop/Dabest/basketball_score_sheet.db")
-        cursor = conn.cursor()
+            conn = sqlite3.connect("C:/Users/ASUS/OneDrive/Desktop/Dabest/basketball_score_sheet.db")
+            cursor = conn.cursor()
 
-        cursor.execute("SELECT team_id, tournament_name FROM teams WHERE team_name = ?", (team1_name,))
-        t1_data = cursor.fetchone()
-        cursor.execute("SELECT team_id FROM teams WHERE team_name = ?", (team2_name,))
-        t2_data = cursor.fetchone()
+            # หา team_id
+            cursor.execute("SELECT team_id, tournament_name FROM teams WHERE team_name = ?", (team1_name,))
+            t1_data = cursor.fetchone()
+            cursor.execute("SELECT team_id FROM teams WHERE team_name = ?", (team2_name,))
+            t2_data = cursor.fetchone()
+            if not t1_data or not t2_data:
+                print("❌ ไม่เจอทีมในฐานข้อมูล")
+                conn.close()
+                return
+            team1_id, tournament_name = t1_data
+            team2_id = t2_data[0]
 
-        if not t1_data or not t2_data:
-            print("❌ ไม่เจอทีมในฐานข้อมูล")
-            return
+            # หา match
+            cursor.execute("""
+                SELECT match_id, match_date FROM matches
+                WHERE (team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?)
+            """, (team1_id, team2_id, team2_id, team1_id))
+            match = cursor.fetchone()
+            if not match:
+                print("❌ ไม่เจอแมตช์ระหว่าง 2 ทีมนี้")
+                conn.close()
+                return
+            match_id, match_date = match
 
-        team1_id, tournament_name = t1_data
-        team2_id = t2_data[0]
-
-        cursor.execute("""
-            SELECT match_id, match_date FROM matches
-            WHERE (team1_id = ? AND team2_id = ?) OR (team1_id = ? AND team2_id = ?)
-        """, (team1_id, team2_id, team2_id, team1_id))
-        match = cursor.fetchone()
-
-        if not match:
-            print("❌ ไม่เจอแมตช์ระหว่าง 2 ทีมนี้")
-            return
-
-        match_id, match_date = match
-
-        c = canvas.Canvas(output_file, pagesize=A4)
-        width, height = A4
-        y = 800
-
-        def draw_line(text, size=12, offset=20):
-            nonlocal y
-            if y < 50:  # ถ้าใกล้ขอบล่างแล้ว
-                c.showPage()
-                y = 800
+            # เตรียม PDF
+            c = canvas.Canvas(output_file, pagesize=A4)
+            width, height = A4
+            y = 800
+            def draw_line(text, size=12, offset=20):
+                nonlocal y
+                if y < 50:
+                    c.showPage()
+                    y = 800
+                    c.setFont("Helvetica", size)
                 c.setFont("Helvetica", size)
-            c.setFont("Helvetica", size)
-            c.drawString(50, y, text)
-            y -= offset
+                c.drawString(50, y, text)
+                y -= offset
 
-        draw_line("🏀 Tournament Match Summary", 16, 30)
-        draw_line(f"Tournament: {tournament_name}")
-        draw_line(f"Match ID: {match_id} | Match Date: {match_date}")
-        draw_line(f"{team1_name} (ID: {team1_id}) vs {team2_name} (ID: {team2_id})", 14, 25)
-        cursor.execute("SELECT winner FROM matches WHERE match_id = ?", (match_id,))
-        winner_row = cursor.fetchone()
-        if winner_row:
-            draw_line(f"🏆 Match Winner: {winner_row[0]}", 13, 25)
+            # Header
+            draw_line("🏀 Tournament Match Summary", 16, 30)
+            draw_line(f"Tournament: {tournament_name}")
+            draw_line(f"Match ID: {match_id} | Match Date: {match_date}")
+            draw_line(f"{team1_name} (ID: {team1_id}) vs {team2_name} (ID: {team2_id})", 14, 25)
 
-        draw_line(f"Players for {team1_name}:", 12, 18)
-        cursor.execute("SELECT player_name, player_number FROM players WHERE team_id = ?", (team1_id,))
-        for name, number in cursor.fetchall():
-            draw_line(f" - #{number} {name}", 10, 14)
+            # Winner ทั้งเกม (ถ้ามี) — อนุญาตให้แสดงได้
+            cursor.execute("SELECT winner FROM matches WHERE match_id = ?", (match_id,))
+            winner_row = cursor.fetchone()
+            if winner_row:
+                draw_line(f"🏆 Match Winner: {winner_row[0]}", 13, 25)
 
-        draw_line(f"Players for {team2_name}:", 12, 18)
-        cursor.execute("SELECT player_name, player_number FROM players WHERE team_id = ?", (team2_id,))
-        for name, number in cursor.fetchall():
-            draw_line(f" - #{number} {name}", 10, 14)
+            # Players
+            draw_line(f"Players for {team1_name}:", 12, 18)
+            cursor.execute("SELECT player_name, player_number FROM players WHERE team_id = ?", (team1_id,))
+            for name, number in cursor.fetchall():
+                draw_line(f" - #{number} {name}", 10, 14)
 
-        for period in range(1, 5):
-            draw_line(f"\nPeriod {period}", 13, 20)
+            draw_line(f"Players for {team2_name}:", 12, 18)
+            cursor.execute("SELECT player_name, player_number FROM players WHERE team_id = ?", (team2_id,))
+            for name, number in cursor.fetchall():
+                draw_line(f" - #{number} {name}", 10, 14)
 
-            cursor.execute("""
-                SELECT team1_score, team2_score, period_winner FROM scores
-                WHERE match_id = ? AND period = ?
-            """, (match_id, period))
-            result = cursor.fetchone()
-            if result:
-                t1_score, t2_score, winner = result
-                draw_line(f"Score: {team1_name} {t1_score} - {t2_score} {team2_name}", 11)
-                draw_line(f"Winner: {winner}", 11)
+            # สรุปตาม period
+            for period in range(1, 5):
+                draw_line(f"\nPeriod {period}", 13, 20)
 
-            # Timeouts (no LIKE)
-            draw_line("Timeouts:", 11)
-            cursor.execute("""
-                SELECT team_id, time FROM timeouts
-                WHERE match_id = ? AND period = ? ORDER BY time DESC
-            """, (match_id, period))
-            for team_id, time in cursor.fetchall():
-                draw_line(f" - Team {team_id} @ {time}", 10)
+                # Score (เอาเฉพาะสกอร์ ไม่ต้องพิมพ์ winner ของ period)
+                cursor.execute("""
+                    SELECT team1_score, team2_score FROM scores
+                    WHERE match_id = ? AND period = ?
+                """, (match_id, period))
+                result = cursor.fetchone()
+                if result:
+                    t1_score, t2_score = result
+                    draw_line(f"Score: {team1_name} {t1_score} - {t2_score} {team2_name}", 11)
 
-            # Substitutions (no LIKE)
-            draw_line("Substitutions:", 11)
-            cursor.execute("""
-                SELECT team_id, player_out, player_in, time FROM substitutions
-                WHERE match_id = ? AND period = ? ORDER BY time DESC
-            """, (match_id, period))
-            for team_id, player_out, player_in, time in cursor.fetchall():
-                draw_line(f" - Team {team_id}: Out {player_out}, In {player_in} @ {time}", 10)
+                # Timeouts
+                draw_line("Timeouts:", 11)
+                cursor.execute("""
+                    SELECT team_id, time FROM timeouts
+                    WHERE match_id = ? AND period = ? ORDER BY time DESC
+                """, (match_id, period))
+                for tid, t in cursor.fetchall():
+                    tname = team1_name if tid == team1_id else (team2_name if tid == team2_id else f"ID:{tid}")
+                    draw_line(f" - {tname} @ {t}", 10)
 
-            # Fouls (no LIKE)
-            # draw_line("Fouls:", 11)
-            # cursor.execute("""
-            #     SELECT player_id, time FROM fouls
-            #     WHERE match_id = ? AND period = ? ORDER BY time DESC
-            # """, (match_id, period))
-            # for player_id, time in cursor.fetchall():
-            #     draw_line(f" - Player {player_id} @ {time}", 10)
-            # Fouls (with team name)
+                # Substitutions (ทีม, ผู้เล่นออก, ผู้เล่นเข้า, เวลา)
+                draw_line("Substitutions:", 11)
+                cursor.execute("""
+                    SELECT team_id, player_out, player_in, time FROM substitutions
+                    WHERE match_id = ? AND period = ? ORDER BY time DESC
+                """, (match_id, period))
 
-            draw_line("Fouls:", 11)
-            cursor.execute("""
-                SELECT player_id, time FROM fouls
-                WHERE match_id = ? AND period = ? ORDER BY time DESC
-            """, (match_id, period))
-            for player_id, time in cursor.fetchall():
-                cursor.execute("SELECT team_id FROM players WHERE player_id = ?", (player_id,))
-                team_row = cursor.fetchone()
-                if team_row:
-                    foul_team_id = team_row[0]
-                    if foul_team_id == team1_id:
-                        foul_team_name = team1_name
-                    elif foul_team_id == team2_id:
-                        foul_team_name = team2_name
+                def _clean_player_no(tag):
+                    """
+                    รับค่าอย่าง 'player9_team1' หรือ 'player5_team2' แล้วคืน '9' หรือ '5'
+                    ถ้าไม่มีตัวเลข ให้คืนสตริงเดิม
+                    """
+                    if tag is None:
+                        return "?"
+                    s = str(tag)
+                    m = re.search(r'(\d+)', s)
+                    return m.group(1) if m else s
+
+                for tid, p_out, p_in, t in cursor.fetchall():
+                    tname = (team1_name if tid == team1_id
+                            else team2_name if tid == team2_id
+                            else f"ID:{tid}")
+                    out_no = _clean_player_no(p_out)
+                    in_no  = _clean_player_no(p_in)
+                    draw_line(f" - {tname}: out #{out_no}, in #{in_no} @ {t}", 10)
+
+                # Fouls (ทีม, หมายเลขผู้เล่น, เวลา)
+                draw_line("Fouls:", 11)
+                cursor.execute("""
+                    SELECT team, player_id, time FROM fouls
+                    WHERE match_id = ? AND period = ? ORDER BY time DESC
+                """, (match_id, period))
+                for team_val, player_no, t in cursor.fetchall():
+                    # team อาจเก็บเป็น 'team1'/'team2' หรือเป็น team_id (int)
+                    if isinstance(team_val, str):
+                        tname = team1_name if team_val.lower() == "team1" else (team2_name if team_val.lower() == "team2" else team_val)
                     else:
-                        foul_team_name = f"ID:{foul_team_id}"
-                else:
-                    foul_team_name = "Unknown"
-                draw_line(f" - Player {player_id} ({foul_team_name}) @ {time}", 10)
+                        tname = team1_name if team_val == team1_id else (team2_name if team_val == team2_id else f"ID:{team_val}")
+                    draw_line(f" - {tname}, player #{player_no} @ {t}", 10)
 
-        c.save()
-        conn.close()
-        print(f"✅ สร้าง PDF เรียบร้อย: {output_file}")
+            c.save()
+            conn.close()
+            print(f"✅ สร้าง PDF เรียบร้อย: {output_file}")
 
     def fetch_username(self,username):
         self.username = username

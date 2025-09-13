@@ -880,6 +880,518 @@ class Set_up_match(QMainWindow):
 
     def get_username(self, username):
         """
+        รอบแรก : records < 16
+            → ใช้ลอจิกเดิม จับคู่ทีมทั้งหมด 1v2, 3v4, ... และกรองทีมที่แข่งแล้วออก
+        รอบ 16→8 : 16 <= records < 24
+            → ใช้ 'ผู้ชนะเรคคอร์ด 1..16' จับคู่ (1vs2,3vs4,...,15vs16) และกรองทีมที่ถูกบันทึกใน 17..24 ออก
+        รอบ 8→4 : 24 <= records < 28   (อันใหม่ตามที่สั่ง)
+            → ใช้ 'ผู้ชนะเรคคอร์ด 17..24' จับคู่ (17vs18,19vs20,21vs22,23vs24)
+            และถ้า records > 24 ให้กรองทีมที่ถูกใช้แล้วในเรคคอร์ด 25..ปัจจุบันออก
+        """
+
+        # 0) disconnect signals + เคลียร์ + block signals
+        for cb, slot in [
+            (self.select_team_combobox, self.update_selected_teams),
+            (self.select_team1_combobox, self.check_team1_selected),
+            (self.select_team2_combobox, self.check_team2_selected),
+        ]:
+            try:
+                cb.currentIndexChanged.disconnect(slot)
+            except Exception:
+                pass
+        for cb in (self.select_team_combobox, self.select_team1_combobox, self.select_team2_combobox):
+            cb.blockSignals(True); cb.clear()
+
+        self.username = username
+
+        # --- helpers ---
+        def winner_to_id_name(w):
+            """รับ winner (ชื่อทีม หรือ team_id) → (team_id, team_name) | (None, None)"""
+            if w is None: return (None, None)
+            s = str(w).strip()
+            if s == "" or s.lower() in ("draw", "tie", "none", "0"):  # ไม่ถือว่าเป็นผู้ชนะ
+                return (None, None)
+            try:
+                tid = int(s)  # winner เก็บเป็น team_id
+                self.cursor.execute(
+                    "SELECT team_name FROM teams WHERE username=? AND team_id=? LIMIT 1",
+                    (self.username, tid),
+                )
+                r = self.cursor.fetchone()
+                return (tid if r else None, r[0] if r else None)
+            except ValueError:
+                # winner เก็บเป็นชื่อทีม
+                self.cursor.execute(
+                    "SELECT team_id FROM teams WHERE username=? AND team_name=? LIMIT 1",
+                    (self.username, s),
+                )
+                r = self.cursor.fetchone()
+                return (r[0] if r else None, s if r else None)
+
+        def count_records() -> int:
+            self.cursor.execute("SELECT COUNT(*) FROM matches WHERE username=?", (self.username,))
+            row = self.cursor.fetchone()
+            return int(row[0]) if row and row[0] is not None else 0
+
+        self.match_pairs = []
+        total = count_records()
+                # ================== รอบชิง (Winner): ผู้ชนะจาก "เรคคอร์ด 29..30" ==================
+        if 30 <= total < 32:
+            # 1) winners ของเรคคอร์ด 29..30
+            self.cursor.execute("""
+                SELECT winner
+                FROM matches
+                WHERE username=?
+                ORDER BY match_id ASC
+                LIMIT 2 OFFSET 28
+            """, (self.username,))
+            r29_30 = [row[0] for row in self.cursor.fetchall()]  # ยาว ≤ 2
+
+            # 2) ทีมที่ถูกใช้ไปแล้วในรอบนี้ (เรคคอร์ด 31..ปัจจุบัน) → กรองออก (กันตั้งซ้ำ)
+            already = set()
+            if total > 30:
+                take = min(1, total - 30)  # สูงสุด 1 เรคคอร์ด (31)
+                self.cursor.execute("""
+                    SELECT team1_id, team2_id
+                    FROM matches
+                    WHERE username=?
+                    ORDER BY match_id ASC
+                    LIMIT ? OFFSET 30
+                """, (self.username, take))
+                for t1, t2 in self.cursor.fetchall():
+                    if t1: already.add(int(t1))
+                    if t2: already.add(int(t2))
+
+            # 3) จับคู่ (29vs30) เฉพาะเมื่อมีผู้ชนะครบและยังไม่ถูกใช้ในรอบนี้
+            pairs_final = []
+            if len(r29_30) >= 2:
+                t1_id, t1_name = winner_to_id_name(r29_30[0])
+                t2_id, t2_name = winner_to_id_name(r29_30[1])
+                if t1_id and t2_id and (t1_id not in already) and (t2_id not in already):
+                    pairs_final.append((t1_name, t1_id, t2_name, t2_id))
+
+            # 4) เติม combobox หลัก + เก็บ match_pairs
+            for n1, id1, n2, id2 in pairs_final:
+                self.select_team_combobox.addItem(f"{n1} vs {n2}")
+                self.match_pairs.append((n1, id1, n2, id2))
+
+            # 5) เติม combobox team1/team2 จากรายชื่อที่ไม่ซ้ำ
+            unique_names = []
+            for n1, _, n2, _ in pairs_final:
+                if n1 and n1 not in unique_names: unique_names.append(n1)
+                if n2 and n2 not in unique_names: unique_names.append(n2)
+
+            self.team1_list, self.team2_list = [], []
+            for nm in unique_names:
+                self.cursor.execute(
+                    "SELECT team_id FROM teams WHERE username=? AND team_name=? LIMIT 1",
+                    (self.username, nm),
+                )
+                r = self.cursor.fetchone()
+                if r:
+                    tid = int(r[0])
+                    if tid not in already:
+                        self.team1_list.append((nm, tid))
+                        self.team2_list.append((nm, tid))
+
+            for nm, _ in self.team1_list:
+                self.select_team1_combobox.addItem(nm)
+            for nm, _ in self.team2_list:
+                self.select_team2_combobox.addItem(nm)
+
+            self.team1_id = self.team1_list[0][1] if self.team1_list else None
+            self.team2_id = self.team2_list[0][1] if self.team2_list else None
+
+        # ================== รอบ 4→2 : ผู้ชนะจาก "เรคคอร์ด 25..28" (ใหม่) ==================
+        elif 28 <= total < 30:
+            # 1) winners ของเรคคอร์ด 25..28
+            self.cursor.execute("""
+                SELECT winner
+                FROM matches
+                WHERE username=?
+                ORDER BY match_id ASC
+                LIMIT 4 OFFSET 24
+            """, (self.username,))
+            r25_28 = [row[0] for row in self.cursor.fetchall()]  # ยาว ≤ 4
+
+            # 2) ทีมที่ถูกใช้ไปแล้วในรอบนี้ (เรคคอร์ด 29..ปัจจุบัน) → กรองออก
+            already = set()
+            take = min(2, max(0, total - 28))  # สูงสุด 2 เรคคอร์ด (29..30)
+            if take > 0:
+                self.cursor.execute("""
+                    SELECT team1_id, team2_id
+                    FROM matches
+                    WHERE username=?
+                    ORDER BY match_id ASC
+                    LIMIT ? OFFSET 28
+                """, (self.username, take))
+                for t1, t2 in self.cursor.fetchall():
+                    if t1: already.add(int(t1))
+                    if t2: already.add(int(t2))
+
+            # 3) จับคู่ (25vs26, 27vs28) เฉพาะคู่ที่มีผู้ชนะครบและยังไม่ถูกใช้ในรอบนี้
+            pairs = []
+            for i in range(0, len(r25_28), 2):
+                if i + 1 >= len(r25_28):
+                    break
+                t1_id, t1_name = winner_to_id_name(r25_28[i])
+                t2_id, t2_name = winner_to_id_name(r25_28[i + 1])
+                if t1_id and t2_id and (t1_id not in already) and (t2_id not in already):
+                    pairs.append((t1_name, t1_id, t2_name, t2_id))
+
+            # 4) เติม combobox หลัก + เก็บ match_pairs
+            for n1, id1, n2, id2 in pairs:
+                self.select_team_combobox.addItem(f"{n1} vs {n2}")
+                self.match_pairs.append((n1, id1, n2, id2))
+
+            # 5) เติม combobox team1/team2 จากรายชื่อที่ไม่ซ้ำ (และยังไม่ถูกใช้)
+            unique_names = []
+            for n1, _, n2, _ in pairs:
+                if n1 and n1 not in unique_names: unique_names.append(n1)
+                if n2 and n2 not in unique_names: unique_names.append(n2)
+
+            self.team1_list, self.team2_list = [], []
+            for nm in unique_names:
+                self.cursor.execute(
+                    "SELECT team_id FROM teams WHERE username=? AND team_name=? LIMIT 1",
+                    (self.username, nm),
+                )
+                r = self.cursor.fetchone()
+                if r:
+                    tid = int(r[0])
+                    if tid not in already:
+                        self.team1_list.append((nm, tid))
+                        self.team2_list.append((nm, tid))
+
+            for nm, _ in self.team1_list: self.select_team1_combobox.addItem(nm)
+            for nm, _ in self.team2_list: self.select_team2_combobox.addItem(nm)
+
+            self.team1_id = self.team1_list[0][1] if self.team1_list else None
+            self.team2_id = self.team2_list[0][1] if self.team2_list else None
+
+        # ================== รอบ 8→4 : ผู้ชนะจาก "เรคคอร์ด 17..24" (ใหม่) ==================
+        elif 24 <= total < 28:
+            # 1) winners ของเรคคอร์ด 17..24
+            self.cursor.execute("""
+                SELECT winner
+                FROM matches
+                WHERE username=?
+                ORDER BY match_id ASC
+                LIMIT 8 OFFSET 16
+            """, (self.username,))
+            r17_24 = [row[0] for row in self.cursor.fetchall()]  # ยาว ≤ 8
+
+            # 2) ทีมที่ถูกใช้ไปแล้วในรอบนี้ (เรคคอร์ด 25..ปัจจุบัน)
+            already = set()
+            if total > 24:
+                take = min(4, total - 24)  # สูงสุด 4 เรคคอร์ด (25..28)
+                self.cursor.execute("""
+                    SELECT team1_id, team2_id
+                    FROM matches
+                    WHERE username=?
+                    ORDER BY match_id ASC
+                    LIMIT ? OFFSET 24
+                """, (self.username, take))
+                for t1, t2 in self.cursor.fetchall():
+                    if t1: already.add(int(t1))
+                    if t2: already.add(int(t2))
+
+            # 3) จับคู่ (17vs18, 19vs20, 21vs22, 23vs24)
+            pairs = []
+            for i in range(0, len(r17_24), 2):
+                if i + 1 >= len(r17_24): break
+                t1_id, t1_name = winner_to_id_name(r17_24[i])
+                t2_id, t2_name = winner_to_id_name(r17_24[i + 1])
+                if t1_id and t2_id and (t1_id not in already) and (t2_id not in already):
+                    pairs.append((t1_name, t1_id, t2_name, t2_id))
+
+            # 4) เติม combobox หลัก + list team1/team2 (เฉพาะผู้ชนะที่ยังว่าง)
+            for n1, id1, n2, id2 in pairs:
+                self.select_team_combobox.addItem(f"{n1} vs {n2}")
+                self.match_pairs.append((n1, id1, n2, id2))
+
+            unique_names = []
+            for n1, _, n2, _ in pairs:
+                if n1 and n1 not in unique_names: unique_names.append(n1)
+                if n2 and n2 not in unique_names: unique_names.append(n2)
+
+            self.team1_list, self.team2_list = [], []
+            for nm in unique_names:
+                self.cursor.execute(
+                    "SELECT team_id FROM teams WHERE username=? AND team_name=? LIMIT 1",
+                    (self.username, nm),
+                )
+                r = self.cursor.fetchone()
+                if r:
+                    tid = int(r[0])
+                    if tid not in already:
+                        self.team1_list.append((nm, tid))
+                        self.team2_list.append((nm, tid))
+
+            for nm, _ in self.team1_list: self.select_team1_combobox.addItem(nm)
+            for nm, _ in self.team2_list: self.select_team2_combobox.addItem(nm)
+
+            self.team1_id = self.team1_list[0][1] if self.team1_list else None
+            self.team2_id = self.team2_list[0][1] if self.team2_list else None
+
+        # ================== รอบ 16→8 : ผู้ชนะจาก "เรคคอร์ด 1..16" (ของเดิม) ==================
+        elif 16 <= total < 24:
+            # winners 1..16
+            self.cursor.execute("""
+                SELECT winner
+                FROM matches
+                WHERE username=?
+                ORDER BY match_id ASC
+                LIMIT 16
+            """, (self.username,))
+            first16 = [row[0] for row in self.cursor.fetchall()]
+
+            # ทีมที่ถูกใช้แล้วในเรคคอร์ด 17..24
+            already = set()
+            self.cursor.execute("""
+                SELECT team1_id, team2_id
+                FROM matches
+                WHERE username=?
+                ORDER BY match_id ASC
+                LIMIT 8 OFFSET 16
+            """, (self.username,))
+            for t1, t2 in self.cursor.fetchall():
+                if t1: already.add(int(t1))
+                if t2: already.add(int(t2))
+
+            pairs = []
+            for i in range(0, len(first16), 2):
+                if i + 1 >= len(first16): break
+                t1_id, t1_name = winner_to_id_name(first16[i])
+                t2_id, t2_name = winner_to_id_name(first16[i + 1])
+                if t1_id and t2_id and (t1_id not in already) and (t2_id not in already):
+                    pairs.append((t1_name, t1_id, t2_name, t2_id))
+
+            for n1, id1, n2, id2 in pairs:
+                self.select_team_combobox.addItem(f"{n1} vs {n2}")
+                self.match_pairs.append((n1, id1, n2, id2))
+
+            unique_names = []
+            for n1, _, n2, _ in pairs:
+                if n1 and n1 not in unique_names: unique_names.append(n1)
+                if n2 and n2 not in unique_names: unique_names.append(n2)
+
+            self.team1_list, self.team2_list = [], []
+            for nm in unique_names:
+                self.cursor.execute(
+                    "SELECT team_id FROM teams WHERE username=? AND team_name=? LIMIT 1",
+                    (self.username, nm),
+                )
+                r = self.cursor.fetchone()
+                if r:
+                    tid = int(r[0])
+                    if tid not in already:
+                        self.team1_list.append((nm, tid))
+                        self.team2_list.append((nm, tid))
+
+            for nm, _ in self.team1_list: self.select_team1_combobox.addItem(nm)
+            for nm, _ in self.team2_list: self.select_team2_combobox.addItem(nm)
+
+            self.team1_id = self.team1_list[0][1] if self.team1_list else None
+            self.team2_id = self.team2_list[0][1] if self.team2_list else None
+
+        # ================== รอบแรก 32→16 : ของเดิม ==================
+        else:
+            self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username = ?', (self.username,))
+            teams = self.cursor.fetchall()
+
+            played_ids = self._get_played_team_ids()  # เกณฑ์เดิม
+            if len(teams) % 2 == 0:
+                for i in range(0, len(teams), 2):
+                    t1_name, t1_id = teams[i]
+                    t2_name, t2_id = teams[i + 1]
+                    if t1_id in played_ids or t2_id in played_ids:
+                        continue
+                    self.select_team_combobox.addItem(f"{t1_name} vs {t2_name}")
+                    self.match_pairs.append((t1_name, t1_id, t2_name, t2_id))
+            else:
+                print("จำนวนทีมไม่เป็นเลขคู่ ไม่สามารถจับคู่ได้")
+
+            self.team1_list = [t for t in teams if t[1] not in played_ids]
+            self.team2_list = [t for t in teams if t[1] not in played_ids]
+
+            for n, _ in self.team1_list: self.select_team1_combobox.addItem(n)
+            for n, _ in self.team2_list: self.select_team2_combobox.addItem(n)
+
+            self.team1_id = self.team1_list[0][1] if self.team1_list else None
+            self.team2_id = self.team2_list[0][1] if self.team2_list else None
+
+        # 4) reset index + reconnect signals
+        self.select_team_combobox.setCurrentIndex(-1)
+        self.select_team1_combobox.setCurrentIndex(-1)
+        self.select_team2_combobox.setCurrentIndex(-1)
+        for cb in (self.select_team_combobox, self.select_team1_combobox, self.select_team2_combobox):
+            cb.blockSignals(False)
+
+        self.select_team_combobox.currentIndexChanged.connect(self.update_selected_teams)
+        self.select_team1_combobox.currentIndexChanged.connect(self.check_team1_selected)
+        self.select_team2_combobox.currentIndexChanged.connect(self.check_team2_selected)
+
+
+    def get_username_recent(self, username):
+        """
+        รอบแรก:  records < 16  → ลอจิกเดิม จับคู่ทีมทั้งหมด (1v2, 3v4, ...) และกรองทีมที่แข่งแล้วออก
+        รอบสอง:  16 <= records < 24 →
+                - ใช้ผู้ชนะจาก 'เรคคอร์ด 1..16' จับคู่ (1vs2, 3vs4, ..., 15vs16)
+                - ตัดทีมที่ถูกบันทึกใน 'เรคคอร์ด 17..24' ออก (ทีมที่แข่งไปแล้วในรอบนี้)
+        """
+        # 0) ตัดสัญญาณเก่า + ล้างค่า + บล็อกสัญญาณกันยิงวน
+        for cb, slot in [
+            (self.select_team_combobox, self.update_selected_teams),
+            (self.select_team1_combobox, self.check_team1_selected),
+            (self.select_team2_combobox, self.check_team2_selected),
+        ]:
+            try:
+                cb.currentIndexChanged.disconnect(slot)
+            except Exception:
+                pass
+        for cb in (self.select_team_combobox, self.select_team1_combobox, self.select_team2_combobox):
+            cb.blockSignals(True); cb.clear()
+
+        self.username = username
+        table = "matches" if self._table_exists("matches") else "matchs"
+
+        # -------- helpers --------
+        def winner_to_id_name(w):
+            """winner -> (team_id, team_name) | (None, None)"""
+            if w is None: return (None, None)
+            s = str(w).strip()
+            if s == "" or s.lower() in ("draw", "tie", "none", "0"):
+                return (None, None)
+            try:  # เป็น team_id
+                tid = int(s)
+                self.cursor.execute(
+                    "SELECT team_name FROM teams WHERE username=? AND team_id=? LIMIT 1",
+                    (self.username, tid),
+                )
+                r = self.cursor.fetchone()
+                return (tid if r else None, r[0] if r else None)
+            except ValueError:  # เป็นชื่อทีม
+                self.cursor.execute(
+                    "SELECT team_id FROM teams WHERE username=? AND team_name=? LIMIT 1",
+                    (self.username, s),
+                )
+                r = self.cursor.fetchone()
+                return (r[0] if r else None, s if r else None)
+
+        # 1) นับจำนวนเรคคอร์ดของผู้ใช้งาน
+        #    ใช้ ORDER BY ที่แน่นอนเพื่อกำหนด “ลำดับเรคคอร์ด” ให้ชัด (เลือก match_id ถัดด้วย match_date เผื่อ tie)
+        self.cursor.execute(f"SELECT COUNT(*) FROM {table} WHERE username=?", (self.username,))
+        total = self.cursor.fetchone()[0] or 0
+
+        self.match_pairs = []
+
+        # ================= รอบสอง: 16 → 8 (อิง 'เรคคอร์ด' ไม่ใช่ match_id) =================
+        if 16 <= total < 24:
+            # 1.1 winners ของเรคคอร์ด 1..16
+            self.cursor.execute(
+                f"""SELECT winner
+                    FROM {table}
+                    WHERE username=?
+                    ORDER BY match_id ASC, match_date ASC
+                    LIMIT 16""",
+                (self.username,),
+            )
+            first16 = [row[0] for row in self.cursor.fetchall()]  # ความยาว ≤ 16
+
+            # 1.2 ทีมที่ถูกบันทึกแล้วในรอบนี้ = เรคคอร์ด 17..24  (LIMIT 8 OFFSET 16)
+            self.cursor.execute(
+                f"""SELECT team1_id, team2_id
+                    FROM {table}
+                    WHERE username=?
+                    ORDER BY match_id ASC, match_date ASC
+                    LIMIT 8 OFFSET 16""",
+                (self.username,),
+            )
+            already = set()
+            for t1, t2 in self.cursor.fetchall():
+                if t1: already.add(t1)
+                if t2: already.add(t2)
+
+            # 1.3 จับคู่ (1vs2), (3vs4), ..., (15vs16)
+            pairs = []
+            for i in range(0, len(first16), 2):
+                if i + 1 >= len(first16): break
+                t1_id, t1_name = winner_to_id_name(first16[i])
+                t2_id, t2_name = winner_to_id_name(first16[i + 1])
+                if t1_id and t2_id and (t1_id not in already) and (t2_id not in already):
+                    pairs.append((t1_name, t1_id, t2_name, t2_id))
+
+            # 1.4 เติม combobox + เตรียม list สำหรับซ้าย/ขวา (เฉพาะผู้ชนะที่ยังไม่ถูกใช้ในเรคคอร์ด 17..24)
+            for n1, id1, n2, id2 in pairs:
+                self.select_team_combobox.addItem(f"{n1} vs {n2}")
+                self.match_pairs.append((n1, id1, n2, id2))
+
+            unique_names = []
+            for n1, _, n2, _ in pairs:
+                if n1 and n1 not in unique_names: unique_names.append(n1)
+                if n2 and n2 not in unique_names: unique_names.append(n2)
+
+            self.team1_list, self.team2_list = [], []
+            for nm in unique_names:
+                self.cursor.execute(
+                    "SELECT team_id FROM teams WHERE username=? AND team_name=? LIMIT 1",
+                    (self.username, nm),
+                )
+                r = self.cursor.fetchone()
+                if r:
+                    tid = r[0]
+                    if tid not in already:
+                        self.team1_list.append((nm, tid))
+                        self.team2_list.append((nm, tid))
+
+            for nm, _ in self.team1_list: self.select_team1_combobox.addItem(nm)
+            for nm, _ in self.team2_list: self.select_team2_combobox.addItem(nm)
+
+            self.team1_id = self.team1_list[0][1] if self.team1_list else None
+            self.team2_id = self.team2_list[0][1] if self.team2_list else None
+
+        # ================= รอบแรก: 32 → 16 (records < 16) =================
+        else:
+            # ลอจิกเดิมของนายท่าน: จับคู่ทีมทั้งหมด 1v2, 3v4, ... แล้วกรองทีมที่แข่งแล้วออก
+            self.cursor.execute('SELECT team_name, team_id FROM teams WHERE username=?', (self.username,))
+            teams = self.cursor.fetchall()
+
+            played_ids = self._get_played_team_ids()
+            if len(teams) % 2 == 0:
+                for i in range(0, len(teams), 2):
+                    t1_name, t1_id = teams[i]
+                    t2_name, t2_id = teams[i + 1]
+                    if t1_id in played_ids or t2_id in played_ids:
+                        continue
+                    self.select_team_combobox.addItem(f"{t1_name} vs {t2_name}")
+                    self.match_pairs.append((t1_name, t1_id, t2_name, t2_id))
+            else:
+                print("จำนวนทีมไม่เป็นเลขคู่ ไม่สามารถจับคู่ได้")
+
+            self.team1_list = [t for t in teams if t[1] not in played_ids]
+            self.team2_list = [t for t in teams if t[1] not in played_ids]
+
+            for n, _ in self.team1_list: self.select_team1_combobox.addItem(n)
+            for n, _ in self.team2_list: self.select_team2_combobox.addItem(n)
+
+            self.team1_id = self.team1_list[0][1] if self.team1_list else None
+            self.team2_id = self.team2_list[0][1] if self.team2_list else None
+
+        # 2) ตั้งค่าเริ่มต้น + ปลดบล็อก + ต่อสัญญาณกลับ
+        self.select_team_combobox.setCurrentIndex(-1)
+        self.select_team1_combobox.setCurrentIndex(-1)
+        self.select_team2_combobox.setCurrentIndex(-1)
+        for cb in (self.select_team_combobox, self.select_team1_combobox, self.select_team2_combobox):
+            cb.blockSignals(False)
+
+        self.select_team_combobox.currentIndexChanged.connect(self.update_selected_teams)
+        self.select_team1_combobox.currentIndexChanged.connect(self.check_team1_selected)
+        self.select_team2_combobox.currentIndexChanged.connect(self.check_team2_selected)
+
+
+    def get_username_old(self, username):
+        """
         เติม combobox สำหรับเลือกแมตช์และทีม โดย:
         - จับคู่ทีมแบบเรียงทีละสอง (1v2, 3v4, ...)
         - ข้ามคู่ที่มีทีมใดทีมหนึ่ง 'เคยแข่งแล้ว'

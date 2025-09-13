@@ -3302,6 +3302,33 @@ class tournament32(QMainWindow):
     def fetch_usernames(self, username):
         self.username = username
 
+    def _build_round32_winners(self):
+        """
+        คืนค่า list ยาว 16 ช่อง (แต่ละช่องคือผู้ชนะของคู่: 1v2, 3v4, ..., 31v32)
+        ไม่ผูกกับ match_id อีกต่อไป — ค้นจากคู่ team_id โดยตรง
+        """
+        winners = [None] * 16
+        for pair_idx in range(16):
+            a = pair_idx * 2 + 1      # team_id ฝั่งซ้ายของคู่
+            b = a + 1                 # team_id ฝั่งขวาของคู่
+
+            # หาแมตช์ล่าสุดของคู่ (a,b) หรือ (b,a) ของ user นี้
+            self.cursor.execute("""
+                SELECT winner
+                FROM matches
+                WHERE username = ?
+                AND (
+                        (team1_id = ? AND team2_id = ?)
+                    OR (team1_id = ? AND team2_id = ?)
+                )
+                ORDER BY datetime(match_date) DESC
+                LIMIT 1
+            """, (self.username, a, b, b, a))
+            row = self.cursor.fetchone()
+            winners[pair_idx] = row[0] if row and row[0] else None
+
+        return winners
+
     def update_round_16_buttons(self, winners):
         round_16_buttons = [
             self.round_16_team_1_button,
@@ -3322,6 +3349,8 @@ class tournament32(QMainWindow):
             self.round_16_team_16_button,
         ]
 
+        winners = self._build_round32_winners()
+
         for i, winner in enumerate(winners):
             if winner is not None:
                 import re
@@ -3338,7 +3367,73 @@ class tournament32(QMainWindow):
             else:
                 print(f"ℹ️ ไม่มีผู้ชนะในตำแหน่ง {i}")
 
-    def update_round_8_buttons(self, winners):
+    # --- helpers ---
+    def _count_user_matches(self) -> int:
+        self.cursor.execute("SELECT COUNT(*) FROM matches WHERE username = ?", (self.username,))
+        row = self.cursor.fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+
+    def _winners_record_17_to_24(self):
+        """
+        คืน list ยาว 8 โดย map:
+        record 17..24  -> index 0..7
+        ถ้ายังไม่ครบ 24 ก็ยาวเท่าที่มี แล้ว pad ด้วย None
+        """
+        total = self._count_user_matches()
+        if total <= 16:
+            return None  # ยังไม่เริ่มรอบ 16→8
+
+        take = min(8, total - 16)  # เรคคอร์ดเกิน 16 มีได้สูงสุด 8
+        self.cursor.execute("""
+            SELECT winner
+            FROM matches
+            WHERE username = ?
+            ORDER BY match_id ASC
+            LIMIT ? OFFSET 16
+        """, (self.username, take))
+        rows = self.cursor.fetchall()
+        winners = []
+        for r in rows:
+            w = r[0] if r else None
+            s = (str(w).strip() if w is not None else "")
+            winners.append(s if s not in ("", "None") else None)
+        return winners + [None] * (8 - len(winners))
+
+
+    # --- REPLACE THIS ---
+    def update_round_8_buttons(self, winners=None):
+        """
+        ลอจิกตามที่กำหนด:
+        - records <= 16          : return (ไม่ทำอะไร)
+        - 16 < records <= 24     : ใช้ winner ของ 'เรคคอร์ด 17..ปัจจุบัน' เติมปุ่ม 1..8
+                                ช่องที่ยังไม่มี winner ให้เคลียร์เป็นว่าง
+        """
+        buttons = [
+            self.round_8_team_1_button, self.round_8_team_2_button,
+            self.round_8_team_3_button, self.round_8_team_4_button,
+            self.round_8_team_5_button, self.round_8_team_6_button,
+            self.round_8_team_7_button, self.round_8_team_8_button,
+        ]
+
+        total = self._count_user_matches()
+        if total <= 16:
+            return
+        # if total > 24:
+        #     # ปล่อยให้ลอจิกรอบต่อไป (8→4) เป็นคนจัดการ
+        #     return
+
+        # ถ้า caller ไม่ส่ง winners มา → อ่านจาก DB
+        if not winners:
+            winners = self._winners_record_17_to_24()
+            if winners is None:
+                return
+
+        # เขียนค่าให้ครบทุกปุ่มอย่างชัดเจน (กันค่าค้าง)
+        for i in range(8):
+            name = winners[i] if i < len(winners) else None
+            buttons[i].setText(str(name) if name else "")
+
+    def update_round_8_buttons_old(self, winners):
         round_8_buttons = [
             self.round_8_team_1_button,
             self.round_8_team_2_button,
@@ -3366,7 +3461,73 @@ class tournament32(QMainWindow):
             else:
                 print(f"ℹ️ ไม่มีผู้ชนะในตำแหน่ง {i}")
 
-    def update_round_4_buttons(self, winners):
+# ถ้ายังไม่มี helper นี้ ให้ใส่ (มีแล้วข้ามได้)
+    def _count_user_matches(self) -> int:
+        self.cursor.execute("SELECT COUNT(*) FROM matches WHERE username = ?", (self.username,))
+        row = self.cursor.fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+
+    def _winners_record_25_to_28(self):
+        """
+        คืน list ยาว 4 โดย map:
+        record 25..28 -> index 0..3
+        ถ้ายังไม่ถึง 28 ก็เอาเท่าที่มี แล้ว pad ด้วย None ให้ครบ 4
+        """
+        total = self._count_user_matches()
+        if total <= 24:
+            return None  # ยังไม่เริ่มรอบ 8→4
+
+        take = min(4, total - 24)  # เรคคอร์ดเกิน 24 มีได้สูงสุด 4 (25..28)
+        self.cursor.execute("""
+            SELECT winner
+            FROM matches
+            WHERE username = ?
+            ORDER BY match_id ASC
+            LIMIT ? OFFSET 24
+        """, (self.username, take))
+        rows = self.cursor.fetchall()
+
+        winners = []
+        for r in rows:
+            w = r[0] if r else None
+            s = (str(w).strip() if w is not None else "")
+            winners.append(s if s not in ("", "None") else None)
+
+        return winners + [None] * (4 - len(winners))
+
+
+    # --- REPLACE THIS ---
+    def update_round_4_buttons(self, winners=None):
+        """
+        ลอจิกตามรอบ 8 แบบที่กำหนด แต่ใช้ช่วง 25..28:
+        - records <= 24        : return (ไม่ทำอะไร)
+        - records > 24         : ใช้ winner ของ 'เรคคอร์ด 25..ปัจจุบัน' เติมปุ่ม 1..4
+                                ช่องที่ยังไม่มี winner ให้เคลียร์เป็นว่าง
+        """
+        buttons = [
+            self.round_4_team_1_button,
+            self.round_4_team_2_button,
+            self.round_4_team_3_button,
+            self.round_4_team_4_button,
+        ]
+
+        total = self._count_user_matches()
+        if total <= 24:
+            return
+
+        # ถ้า caller ไม่ส่ง winners มา → อ่านจาก DB ตามเรคคอร์ด 25..ปัจจุบัน
+        if not winners:
+            winners = self._winners_record_25_to_28()
+            if winners is None:
+                return
+
+        # เขียนค่าให้ครบทุกปุ่มอย่างชัดเจน (กันค่าค้าง)
+        for i in range(4):
+            name = winners[i] if i < len(winners) else None
+            buttons[i].setText(str(name) if name else "")
+
+
+    def update_round_4_buttons_old(self, winners):
         round_4_buttons = [
             self.round_4_team_1_button,
             self.round_4_team_2_button,
@@ -3390,7 +3551,68 @@ class tournament32(QMainWindow):
             else:
                 print(f"ℹ️ ไม่มีผู้ชนะในตำแหน่ง {i}")
 
-    def update_round_2_buttons(self, winners):
+    # ถ้ายังไม่มี helper นี้ ให้ใส่ (มีแล้วข้ามได้)
+    def _count_user_matches(self) -> int:
+        self.cursor.execute("SELECT COUNT(*) FROM matches WHERE username = ?", (self.username,))
+        row = self.cursor.fetchone()
+        return int(row[0]) if row and row[0] is not None else 0
+
+    def _winners_record_29_to_30(self):
+        """
+        คืน list ยาว 2 โดย map:
+        record 29..30 -> index 0..1
+        ถ้ายังไม่ถึง 30 ก็เอาเท่าที่มี แล้ว pad ด้วย None ให้ครบ 2
+        """
+        total = self._count_user_matches()
+        if total <= 28:
+            return None  # ยังไม่เริ่มรอบ 4→2
+
+        take = min(2, total - 28)  # เรคคอร์ดเกิน 28 มีได้สูงสุด 2 (29..30)
+        self.cursor.execute("""
+            SELECT winner
+            FROM matches
+            WHERE username = ?
+            ORDER BY match_id ASC       -- อิงลำดับเรคคอร์ด
+            LIMIT ? OFFSET 28           -- 29..30 = offset 28
+        """, (self.username, take))
+        rows = self.cursor.fetchall()
+
+        winners = []
+        for r in rows:
+            w = r[0] if r else None
+            s = (str(w).strip() if w is not None else "")
+            winners.append(s if s not in ("", "None") else None)
+
+        return winners + [None] * (2 - len(winners))
+
+
+    # --- REPLACE THIS ---
+    def update_round_2_buttons(self, winners=None):
+        """
+        ลอจิกตามรอบ 4 แต่ใช้ช่วง 29..30:
+        - records <= 28        : return (ไม่ทำอะไร)
+        - records > 28         : ใช้ winner ของ 'เรคคอร์ด 29..ปัจจุบัน' เติมปุ่ม 1..2
+                                ช่องที่ยังไม่มี winner ให้เคลียร์เป็นว่าง
+        """
+        buttons = [self.round_2_team_1_button, self.round_2_team_2_button]
+
+        total = self._count_user_matches()
+        if total <= 28:
+            return
+
+        # ถ้า caller ไม่ส่ง winners มา → อ่านจาก DB ตามเรคคอร์ด 29..ปัจจุบัน
+        if not winners:
+            winners = self._winners_record_29_to_30()
+            if winners is None:
+                return
+
+        # เขียนค่าให้ครบทุกปุ่มอย่างชัดเจน (กันค่าค้าง)
+        for i in range(2):
+            name = winners[i] if i < len(winners) else None
+            buttons[i].setText(str(name) if name else "")
+
+
+    def update_round_2_buttons_old(self, winners):
         round_2_buttons = [
             self.round_2_team_1_button,
             self.round_2_team_2_button,
@@ -3405,7 +3627,7 @@ class tournament32(QMainWindow):
                     index = (winner_number - 1) // 2
                     if 0 <= index < len(round_2_buttons):
                         round_2_buttons[index].setText(winner)
-                        
+
                     else:
                         print(f"⚠️ winner_number {winner_number} ทำให้ index เกินขอบเขต")
                 else:
@@ -3413,7 +3635,55 @@ class tournament32(QMainWindow):
             else:
                 print(f"ℹ️ ไม่มีผู้ชนะในตำแหน่ง {i}")
 
-    def update_winner_button(self, winner):
+    def _winner_record_31(self):
+        """
+        คืนชื่อผู้ชนะจากเรคคอร์ด 31 (ถ้าไม่มีให้คืน None)
+        """
+        total = self._count_user_matches()
+        if total <= 30:
+            return None  # ยังไม่เริ่มรอบชิง (ต้องมีอย่างน้อย 31 เรคคอร์ด)
+
+        self.cursor.execute("""
+            SELECT winner
+            FROM matches
+            WHERE username = ?
+            ORDER BY match_id ASC
+            LIMIT 1 OFFSET 30   -- record 31 = offset 30
+        """, (self.username,))
+        row = self.cursor.fetchone()
+
+        w = row[0] if row else None
+        s = (str(w).strip() if w is not None else "")
+        return s if s not in ("", "None") else None
+
+    def update_winner_button(self, winner=None):
+        """
+        ลอจิกตามรอบก่อนๆ:
+        - records <= 30       : return (ยังไม่เริ่มรอบชิง)
+        - records > 30        : ใช้ผู้ชนะจาก 'เรคคอร์ด 31' เติมปุ่มแชมป์
+                                ถ้ายังไม่มี winner ให้เคลียร์ข้อความปุ่ม
+        หมายเหตุ: รองรับทั้งอินพุตแบบ str และ list/tuple ความยาว 1
+        """
+        total = self._count_user_matches()
+        if total <= 30 and (winner is None or (isinstance(winner, (list, tuple)) and not any(winner))):
+            return
+
+        # ถ้า caller ไม่ส่งมา หรือส่งมาเป็น list/tuple ว่าง → อ่านจาก DB
+        if winner is None or (isinstance(winner, (list, tuple)) and not any(winner)):
+            name = self._winner_record_31()
+        else:
+            # รองรับที่ caller ส่ง [champion] มา (เช่นจาก switch) ด้วย
+            if isinstance(winner, (list, tuple)):
+                winner = winner[0] if winner else None
+            name = str(winner).strip() if winner else None
+            if name in ("", "None"):
+                name = None
+
+        # เขียนค่าแบบชัดเจน (กันค่าค้าง)
+        self.winner_button.setText(name if name else "")
+
+
+    def update_winner_button_old(self, winner):
         if winner is not None:
             self.winner_button.setText(winner)
         else:

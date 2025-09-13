@@ -2139,7 +2139,7 @@ class Competition(QMainWindow):
     #     QMessageBox.information(self, "Final Winner", f"The final winner is: {final_winner}")
     #     self.go_to_tournament32_button.show()
 
-    def calculate_final_winner(self):
+    def calculate_final_winner_old(self):
         """
         ตัดสินผู้ชนะจากผลของ period สุดท้ายเท่านั้น
         - ถ้า period สุดท้าย Team 1 ชนะ -> บันทึกชื่อทีม 1
@@ -2188,6 +2188,73 @@ class Competition(QMainWindow):
         self.winner_name.show()
 
         print(f"Final Winner (by last period): {final_winner}")
+        QMessageBox.information(self, "Final Winner", f"The final winner is: {final_winner}")
+        self.go_to_tournament32_button.show()
+
+    def calculate_final_winner(self):
+        """
+        ตัดสินผู้ชนะจาก 'สกอร์ของ PERIOD 4' เท่านั้น
+        - ถ้า period 4 ทีม 1 มากกว่า -> ทีม 1 ชนะ
+        - ถ้า period 4 ทีม 2 มากกว่า -> ทีม 2 ชนะ
+        - ถ้าเท่ากัน -> Draw
+        """
+        # 1) พยายามอ่านจาก label สรุป period 4 ก่อน (เป็นแหล่งความจริงสำหรับเกณฑ์นี้)
+        t1_text = getattr(self, "period_4_team1_final_score", None)
+        t2_text = getattr(self, "period_4_team2_final_score", None)
+
+        def safe_int(lbl):
+            if lbl is None:
+                return None
+            s = lbl.text().strip()
+            return int(s) if s.isdigit() else None
+
+        t1_p4 = safe_int(t1_text)
+        t2_p4 = safe_int(t2_text)
+
+        # 2) ถ้า label ยังไม่มีค่า (ยังไม่กดสรุป/ยังไม่โชว์) ให้ fallback จากสกอร์รวมที่ด้านบนตอนจบ period 4
+        #    (ใน show_period_summary คุณ set label ด้วย score_team*_all อยู่แล้ว)
+        if t1_p4 is None or t2_p4 is None:
+            try:
+                t1_p4 = int(self.score_team1_all.text())
+                t2_p4 = int(self.score_team2_all.text())
+            except Exception:
+                # fallback ขั้นสุดท้าย: ใช้สกอร์สด (เผื่อยังไม่มี *_all)
+                t1_p4 = int(self.score_team1.text())
+                t2_p4 = int(self.score_team2.text())
+
+        # 3) ตัดสินผลจาก period 4
+        if t1_p4 > t2_p4:
+            final_winner = self.get_team_name(self.team1_id)
+            self.update_match_winner(self.match_id, final_winner)
+        elif t2_p4 > t1_p4:
+            final_winner = self.get_team_name(self.team2_id)
+            self.update_match_winner(self.match_id, final_winner)
+        else:
+            final_winner = "Draw"
+
+        # 4) อัปเดต UI แสดงผู้ชนะ (คงสไตล์เดียวกับของเดิม)
+        self.winner.show()
+        if final_winner == "Draw":
+            self.winner_name.setText("Draw")
+            self.winner_name.setStyleSheet('''QLabel#winner_name{
+                background: transparent;
+                color: #ff2525;
+                font-family: Saira Condensed;
+                font-weight: 780;
+                font-size: 20px;
+            }''')
+        else:
+            self.winner_name.setText(final_winner)
+            self.winner_name.setStyleSheet('''QLabel#winner_name{
+                background: transparent;
+                color: #00d527;
+                font-family: Saira Condensed;
+                font-weight: 780;
+                font-size: 20px;
+            }''')
+        self.winner_name.show()
+
+        print(f"Final Winner (by Period 4 score): {final_winner}")
         QMessageBox.information(self, "Final Winner", f"The final winner is: {final_winner}")
         self.go_to_tournament32_button.show()
 
@@ -2929,7 +2996,7 @@ class Competition(QMainWindow):
             self.period += 1
             self.period_number.setText(str(self.period))
 
-            self.reset_values()
+            self.reset_values_old()
             self.timer_button.set_play_icon()
         else:
             self.show_period_summary()
@@ -3253,6 +3320,299 @@ class Competition(QMainWindow):
             print(f"Foul mode activated for {team}. Please select a player.")
 
     def reset_values(self):
+        """
+        รีเซ็ตทั้ง UI และตัวแปรภายในให้พร้อมเริ่มแมตช์ใหม่จากศูนย์
+        - หยุด timer/timeout ทั้งหมด
+        - รีเซ็ต period/time/score/foul/timeout/substitution
+        - ซ่อนสรุปแต่ละ period และผู้ชนะ
+        - คืน icon ปุ่มให้เป็น 'play'
+        """
+        # --- หยุดตัวจับเวลาทุกตัว ---
+        try:
+            self.timer.stop()
+        except Exception:
+            pass
+        for tname in ("timeout_team1_timer", "timeout_team2_timer"):
+            if hasattr(self, tname) and getattr(self, tname):
+                try:
+                    getattr(self, tname).stop()
+                except Exception:
+                    pass
+
+        # --- ธงสถานะหลัก ---
+        self.timer_running = False
+        self.sub_mode_active = False
+        self.foul_mode_active = False
+        self.selected_player_in = None
+        self.selected_player_out = None
+        self.selected_foul_team = None
+
+        # --- ชื่อ/โหมดแสดงผลด้านบนทีม ---
+        self.team1_mode.setText('')
+        self.team2_mode.setText('')
+
+        # --- เวลา & คาบ (period) ---
+        self.period = 1
+        self.period_number.setText('1')
+        self.current_time = 20  # 00:20
+        self.time_minute.setText('00')
+        self.time_second.setText('20')
+
+        # --- คะแนนรวม (สำคัญที่สุด: รีเซ็ตตัวแปรสะสม) ---
+        self.total_score_team1 = 0
+        self.total_score_team2 = 0
+        self.score_team1.setText('0')
+        self.score_team2.setText('0')
+        self.score_team1_all.setText('0')
+        self.score_team2_all.setText('0')
+
+        # --- ฟาวล์ทีม/ผู้เล่น ---
+        self.foul_team1_number.setText('0')
+        self.foul_team2_number.setText('0')
+        self.foul_team1_number.setStyleSheet('''
+            font-size: 70px; font-weight: bold; font-family: DS-Digital; color: #0023e8;
+        ''')
+        self.foul_team2_number.setStyleSheet('''
+            font-size: 70px; font-weight: bold; font-family: DS-Digital; color: #0023e8;
+        ''')
+
+        # ประวัติฟาวล์ผู้เล่น (dict) และอัปเดตตัวเลขใต้ปุ่ม 1-5
+        self.foul_history_team1 = {}
+        self.foul_history_team2 = {}
+        self.update_foul_labels()
+
+        # --- เปลี่ยนตัว ---
+        self.substitution_history_team1 = []
+        self.substitution_history_team2 = []
+        # ซ่อน label/ไอคอนเปลี่ยนตัวที่อาจค้าง
+        for name in ("team1_in_game", "team1_out_game", "team1_exchange_icon",
+                    "team2_in_game", "team2_out_game", "team2_exchange_icon"):
+            if hasattr(self, name):
+                getattr(self, name).hide()
+        # เปิดปุ่ม sub ให้พร้อมใช้ (แต่จะถูกปิดเองตอนเริ่มจับเวลา)
+        self.sub_team1_button.setEnabled(True)
+        self.sub_team2_button.setEnabled(True)
+        self.sub_team1_button.setStyleSheet('''
+            QPushButton#sub_team1_button{
+                background: #ffffff; color: black; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }
+            QPushButton#sub_team1_button:hover{
+                background: #b2b2b2; color: white; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }''')
+        self.sub_team2_button.setStyleSheet('''
+            QPushButton#sub_team2_button{
+                background: #ffffff; color: black; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }
+            QPushButton#sub_team2_button:hover{
+                background: #b2b2b2; color: white; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }''')
+
+        # --- timeout ---
+        # รีเซ็ตตัวเลขที่โชว์ (ตามกติกาคุณ: คาบ 1-3 = 0/2, คาบ 4 = 0/3 -> ตอนเริ่มเกมใหม่ให้เป็น 0/2)
+        self.timeout_team1_count.setText('0/2')
+        self.timeout_team2_count.setText('0/2')
+        self.timeout_team1_label.setText('5')  # นับถอยหลัง (ซ่อน)
+        self.timeout_team2_label.setText('5')
+        self.timeout_team1_label.hide()
+        self.timeout_team2_label.hide()
+        self.timeout_team1_count.show()
+        self.timeout_team2_count.show()
+        # คืนสีปุ่ม timeout
+        self.timeout_team1_button.setEnabled(True)
+        self.timeout_team2_button.setEnabled(True)
+        self.timeout_team1_button.setStyleSheet('''
+            QPushButton#timeout_team1_button{
+                background: #ffffff; color: black; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }
+            QPushButton#timeout_team1_button:hover{
+                background: #b2b2b2; color: white; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }''')
+        self.timeout_team2_button.setStyleSheet('''
+            QPushButton#timeout_team2_button{
+                background: #ffffff; color: black; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }
+            QPushButton#timeout_team2_button:hover{
+                background: #b2b2b2; color: white; border: none; border-radius: 10px;
+                font-family: Saira Condensed; font-weight: 780; font-size: 20px;
+            }''')
+
+        # --- แผงผลแต่ละคาบ & ผู้ชนะ ---
+        self.period_winners = []
+        for p in (1, 2, 3, 4):
+            for obj in (
+                f"period_{p}_final_label", f"period_{p}_final_number", f"period_{p}_final_colon",
+                f"period_{p}_team1_final_score", f"period_{p}_team2_final_score"
+            ):
+                if hasattr(self, obj):
+                    w = getattr(self, obj)
+                    if obj.endswith("_team1_final_score") or obj.endswith("_team2_final_score"):
+                        w.setText('000')
+                        w.setStyleSheet(f'''
+                            QLabel#{w.objectName()}{{background: transparent; color: black;
+                            font-family: DS-Digital; font-weight: 780; font-size: 40px;}}''')
+                    w.hide()
+
+        if hasattr(self, "winner"):
+            self.winner.hide()
+        if hasattr(self, "winner_name"):
+            self.winner_name.hide()
+        if hasattr(self, "go_to_tournament32_button"):
+            self.go_to_tournament32_button.hide()
+
+        # --- ปุ่ม start/stop timer: คืนเป็น play ---
+        try:
+            self.timer_button.set_play_icon()
+            self.timer_button.setEnabled(True)
+        except Exception:
+            pass
+
+        # --- เคลียร์ match_id (จะถูกเซ็ตใหม่ตอนเริ่มเกม) ---
+        self.match_id = None
+
+        print("✅ Competition reset completed: state + UI are clean.")
+
+    # def reset_values(self):
+    #     """
+    #     รีเซ็ตหน้า Competition ให้พร้อมสำหรับแมตช์ใหม่:
+    #     - หยุด timer/timeout ทั้งหมด
+    #     - รีเซ็ต period/time/score
+    #     - เคลียร์ประวัติ foul/timeout/substitution
+    #     - ซ่อนสรุปแต่ละ period และ WINNER
+    #     - รีเซ็ตสไตล์สีที่เคยไฮไลต์
+    #     """
+    #     # 1) หยุดตัวจับเวลา/timeout ถ้ามี
+    #     for timer_name in ("timer", "timeout_team1_timer", "timeout_team2_timer"):
+    #         if hasattr(self, timer_name) and getattr(self, timer_name):
+    #             try:
+    #                 getattr(self, timer_name).stop()
+    #             except Exception:
+    #                 pass
+    #     # ธงสถานะการจับเวลา/timeout
+    #     if hasattr(self, "timer_running"):
+    #         self.timer_running = False
+    #     if hasattr(self, "timeout_running"):
+    #         self.timeout_running = False
+    #     if hasattr(self, "active_timeout_team"):
+    #         self.active_timeout_team = None
+
+    #     # 2) รีเซ็ต period/time
+    #     if hasattr(self, "period"):
+    #         self.period = 1
+    #     if hasattr(self, "period_number"):
+    #         self.period_number.setText("1")
+
+    #     # เวลาเริ่มเกม (ตั้งเป็น 00:20 หรือตามค่าที่คุณใช้ทดสอบ)
+    #     if hasattr(self, "current_time"):
+    #         self.current_time = 20
+    #     if hasattr(self, "time_minute"):
+    #         self.time_minute.setText("00")
+    #     if hasattr(self, "time_second"):
+    #         self.time_second.setText("20")
+
+    #     # 3) รีเซ็ตสกอร์รวม/สกอร์หน้าปัด
+    #     for name, value in (("score_team1", "0"),
+    #                         ("score_team2", "0"),
+    #                         ("score_team1_all", "0"),
+    #                         ("score_team2_all", "0")):
+    #         if hasattr(self, name):
+    #             getattr(self, name).setText(value)
+
+    #     # 4) ซ่อน/รีเซ็ตสรุปแต่ละ period + คืนสีดำ
+    #     def _reset_period_panel(p: int):
+    #         lbls = [
+    #             f"period_{p}_final_label",
+    #             f"period_{p}_final_number",
+    #             f"period_{p}_final_colon",
+    #             f"period_{p}_team1_final_score",
+    #             f"period_{p}_team2_final_score",
+    #         ]
+    #         for ln in lbls:
+    #             if hasattr(self, ln):
+    #                 w = getattr(self, ln)
+    #                 # ตั้งค่าเริ่มต้นสำหรับช่องคะแนน
+    #                 if ln.endswith("_team1_final_score") or ln.endswith("_team2_final_score"):
+    #                     try:
+    #                         w.setText("000")
+    #                     except Exception:
+    #                         pass
+    #                     # คืนสีดำ
+    #                     w.setStyleSheet(
+    #                         f"QLabel#{w.objectName()}{{background: transparent; color: black; "
+    #                         "font-family: DS-Digital; font-weight: 780; font-size: 40px;}}"
+    #                     )
+    #                 # ซ่อนทุกอย่างก่อน
+    #                 try:
+    #                     w.hide()
+    #                 except Exception:
+    #                     pass
+
+    #     for p in (1, 2, 3, 4):
+    #         _reset_period_panel(p)
+
+    #     # 5) เคลียร์รายชื่อผู้ชนะราย period และซ่อนผู้ชนะสุดท้าย
+    #     if hasattr(self, "period_winners"):
+    #         self.period_winners = []
+    #     if hasattr(self, "winner"):
+    #         self.winner.hide()
+    #     if hasattr(self, "winner_name"):
+    #         self.winner_name.hide()
+    #     if hasattr(self, "go_to_tournament32_button"):
+    #         self.go_to_tournament32_button.hide()
+
+    #     # 6) รีเซ็ต timeout counter
+    #     if hasattr(self, "time_out_team1"):
+    #         self.time_out_team1 = 0
+    #     if hasattr(self, "time_out_team2"):
+    #         self.time_out_team2 = 0
+    #     if hasattr(self, "timeout_team1_number"):
+    #         self.timeout_team1_number.setText("0")
+    #     if hasattr(self, "timeout_team2_number"):
+    #         self.timeout_team2_number.setText("0")
+
+    #     # 7) รีเซ็ตประวัติ foul และอัปเดตตัวเลขใต้ปุ่มตัวจริง
+    #     if hasattr(self, "foul_history_team1"):
+    #         try:
+    #             self.foul_history_team1.clear()
+    #         except Exception:
+    #             self.foul_history_team1 = {}
+    #     if hasattr(self, "foul_history_team2"):
+    #         try:
+    #             self.foul_history_team2.clear()
+    #         except Exception:
+    #             self.foul_history_team2 = {}
+    #     if hasattr(self, "update_foul_labels"):
+    #         self.update_foul_labels()
+
+    #     # 8) รีเซ็ตสถานะการเปลี่ยนตัว
+    #     for attr in ("substitution_in_progress", "selected_out_button", "selected_in_button"):
+    #         if hasattr(self, attr):
+    #             setattr(self, attr, False if attr == "substitution_in_progress" else None)
+    #     if hasattr(self, "substitution_out_label"):
+    #         try:
+    #             self.substitution_out_label.hide()
+    #         except Exception:
+    #             pass
+    #     if hasattr(self, "substitution_in_label"):
+    #         try:
+    #             self.substitution_in_label.hide()
+    #         except Exception:
+    #             pass
+
+    #     # 9) เคลียร์ match_id (จะถูกเซ็ตใหม่ใน get_username)
+    #     if hasattr(self, "match_id"):
+    #         self.match_id = None
+
+    #     # 10) อื่นๆ (ถ้าคุณมีสไตล์/ธงอื่น ๆ ที่เปลี่ยนตามแมตช์ ให้รีเซ็ตที่นี่)
+    #     # เช่น ปิดโหมด timeout/โหมด score/foul ฯลฯ
+
+    def reset_values_old(self):
         self.current_time = 1 * 20
         self.time_minute.setText("00")
         self.time_second.setText("20")
@@ -3555,6 +3915,39 @@ class Competition(QMainWindow):
         print(f"Team 2 Reserve Players: {team2_reserve_players}")
 
     def insert_match(self, username, team1_id, team2_id):
+        print(f"\n\n\nUsername: {username}, Team 1 ID: {team1_id}, Team 2 ID: {team2_id}\n\n\n")
+
+        # 1) นับจำนวนเรคคอร์ดทั้งหมดในตาราง matches (ทั้งตาราง ไม่ต้องกรองผู้ใช้)
+        self.cursor.execute("SELECT COUNT(*) FROM matches")
+        total = self.cursor.fetchone()[0] or 0
+
+        # 2) เรคคอร์ดถัดไป = total + 1 แล้วคูณสอง = match_id แบบใหม่
+        candidate = (total + 1) * 2
+
+        # 3) กันชนกับเคสที่มีการใส่มือหรือข้อมูลเก่า ๆ ชนกัน
+        while True:
+            self.cursor.execute("SELECT 1 FROM matches WHERE match_id = ?", (candidate,))
+            if not self.cursor.fetchone():
+                break
+            total += 1
+            candidate = (total + 1) * 2
+
+        match_id = candidate
+        match_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 4) บันทึกลง DB
+        self.cursor.execute("""
+            INSERT INTO matches (match_id, username, match_date, team1_id, team2_id)
+            VALUES (?, ?, ?, ?, ?)
+        """, (match_id, username, match_date, team1_id, team2_id))
+        self.connection.commit()
+
+        self.match_id = match_id
+        print(f"Match started with ID: {self.match_id}")
+        return match_id
+
+
+    def insert_match_old(self, username, team1_id, team2_id):
         print(f"\n\n\nUsername: {username}, Team 1 ID: {team1_id}, Team 2 ID: {team2_id}\n\n\n")
         match_id = max(team1_id, team2_id)  # ใช้ค่า team_id ที่มากที่สุดเป็น match_id
         match_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
