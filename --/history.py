@@ -175,6 +175,40 @@ class History(QMainWindow):
 
         self.select_team_combobox.clear()
 
+        # ดึงแมตช์ของ user เรียงตามลำดับเรคคอร์ด (match_id ASC)
+        query = """
+            SELECT m.match_id, t1.team_name, t2.team_name
+            FROM matches m
+            JOIN teams t1 ON m.team1_id = t1.team_id
+            JOIN teams t2 ON m.team2_id = t2.team_id
+            WHERE m.username = ?
+            ORDER BY m.match_id ASC
+        """
+        self.cursor.execute(query, (self.username,))
+        rows = self.cursor.fetchall()
+
+        # helper: map ลำดับเรคคอร์ด -> ป้ายรอบ
+        def phase_for(record_no: int) -> str:
+            if 1 <= record_no <= 16:  return "round16"
+            if 17 <= record_no <= 24: return "round8"
+            if 25 <= record_no <= 28: return "round4"
+            if 29 <= record_no <= 30: return "round2"
+            if record_no == 31:       return "winner"
+            return "round"  # กรณีเกินจากสโคปที่ระบุ
+
+        # เพิ่มรายการลง combobox พร้อมป้ายรอบด้านหน้า
+        for idx, (match_id, team1_name, team2_name) in enumerate(rows, start=1):
+            label = phase_for(idx)
+            display_text = f"{label} - {team1_name} vs {team2_name}"
+            self.select_team_combobox.addItem(display_text, userData=match_id)
+
+
+    def load_match_data_old(self):
+        if not hasattr(self, 'username'):
+            return
+
+        self.select_team_combobox.clear()
+
         query = """
             SELECT m.match_id, t1.team_name, t2.team_name, m.winner
             FROM matches m
