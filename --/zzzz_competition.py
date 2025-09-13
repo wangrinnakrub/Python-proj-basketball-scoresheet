@@ -247,6 +247,8 @@ class Competition(QMainWindow):
 
         self.ui()
 
+        self.init_foul_guard()
+
         QTimer.singleShot(0, self.clear_initial_focus)
 
         # self.load_player_numbers(self.username)
@@ -2037,6 +2039,160 @@ class Competition(QMainWindow):
         }''')
         self.winner_name.hide()
 
+    # ===== Helpers =====
+    def _set_sub_button_enabled_for_team(self, team: int, enabled: bool):
+        """เปิด/ปิดปุ่ม Sub แยกทีม: team=1 -> sub_team1_button, team=2 -> sub_team2_button"""
+        name = "sub_team1_button" if team == 1 else "sub_team2_button"
+        btn = getattr(self, name, None)
+        if btn is not None:
+            btn.setEnabled(enabled)
+
+    def _team_from_player_btn_name(self, btn_name: str) -> int:
+        # "player3_team2" -> 2
+        return 1 if "_team1" in btn_name else 2
+
+    def _get_foul_count(self, player_btn_name: str) -> int:
+        """อ่านค่าฟาวล์จาก QLabel คู่กัน เช่น player1_team1 -> foul_player1_team1"""
+        label_name = f"foul_{player_btn_name}"
+        label = getattr(self, label_name, None)
+        if label is None:
+            return 0
+        try:
+            return int(label.text())
+        except ValueError:
+            return 0
+
+    def _any_starter_fouled_out(self) -> list[str]:
+        """คืนรายชื่อปุ่มผู้เล่นที่มีฟาวล์ >= 5 (เฉพาะตัวจริง player1..5 ของทั้งสองทีม)"""
+        # กันกรณียังไม่ได้ init
+        if not hasattr(self, "_all_starters"):
+            self._starter_btn_names_team1 = [f'player{i}_team1' for i in range(1, 6)]
+            self._starter_btn_names_team2 = [f'player{i}_team2' for i in range(1, 6)]
+            self._all_starters = self._starter_btn_names_team1 + self._starter_btn_names_team2
+
+        offenders = []
+        for name in self._all_starters:
+            if self._get_foul_count(name) >= 5:
+                offenders.append(name)
+        return offenders
+
+    def _pretty_player_name(self, btn_name: str) -> str:
+        """แปลงชื่อปุ่มเป็นข้อความอ่านง่าย เช่น 'player3_team2' -> 'T2 #3' (หรือใช้ข้อความบนปุ่ม)"""
+        team = "T1" if "_team1" in btn_name else "T2"
+        try:
+            btn = getattr(self, btn_name)
+            num = btn.text().strip()
+            if num:
+                return f"{team} #{num}"
+        except Exception:
+            pass
+        # fallback ดึงเลขจากชื่อปุ่ม
+        import re
+        m = re.search(r'player(\d+)_team(\d+)', btn_name)
+        num = m.group(1) if m else "?"
+        return f"{team} #{num}"
+
+    # ===== Init guard =====
+    def init_foul_guard(self):
+        # รายชื่อปุ่มผู้เล่นตัวจริง 1..5 ของแต่ละทีม
+        self._starter_btn_names_team1 = [f'player{i}_team1' for i in range(1, 6)]
+        self._starter_btn_names_team2 = [f'player{i}_team2' for i in range(1, 6)]
+        self._all_starters = self._starter_btn_names_team1 + self._starter_btn_names_team2
+
+        # ธงป้องกันเด้งแจ้งเตือนซ้ำ และธงการเปิดปุ่ม Sub เพราะเหตุฟาวล์
+        self._foul_dialog_shown = False
+        self._sub_forced_by_foul_t1 = False
+        self._sub_forced_by_foul_t2 = False
+
+        # ตั้งนาฬิกาเช็คทุก 300ms
+        self.foul_guard_timer = QTimer(self)
+        self.foul_guard_timer.setInterval(300)
+        self.foul_guard_timer.timeout.connect(self._foul_guard_tick)
+        self.foul_guard_timer.start()
+
+    # ===== Tick =====
+    def _foul_guard_tick(self):
+        """
+        เรียกทุก 300ms:
+        - ถ้ามีใครครบ 5 ฟาวล์: หยุดเวลา, ปิดปุ่ม Play, เปิดปุ่ม Sub ทีมที่เกี่ยว, แจ้งเตือน
+        - ถ้าไม่มีใครครบ 5: เปิดปุ่ม Play, ปิดปุ่ม Sub (ถ้าไม่ได้อยู่ timeout)
+        """
+        offenders = self._any_starter_fouled_out()
+
+        # ไฮไลท์ผู้เล่นที่ครบ 5 ฟาวล์ (แดงอ่อน); คนอื่นคงสไตล์เดิม
+        for name in getattr(self, "_all_starters", []):
+            btn = getattr(self, name, None)
+            if not btn:
+                continue
+            if name in offenders:
+                # เพิ่ม background-color แบบ additive (ระวังกรณีสไตล์ยาวซ้อน)
+                btn.setStyleSheet(btn.styleSheet() + "\nbackground-color: #ffdddd;")
+            # ไม่ reset สไตล์อื่นที่อาจจะมี
+
+        if offenders:
+            # -------- หยุดเวลา + sync ปุ่มไอคอน --------
+            try:
+                # ใช้ stop_timer() ถ้ามี เพื่อหยุดทุกองค์ประกอบของเวลา
+                if hasattr(self, "stop_timer"):
+                    self.stop_timer()
+                elif hasattr(self, "timer"):
+                    self.timer.stop()
+            except Exception:
+                pass
+            self.timer_running = False
+            if hasattr(self, "timer_button"):
+                try:
+                    self.timer_button.set_play_icon()
+                except Exception:
+                    pass
+
+            # -------- บล็อคปุ่ม Play --------
+            if hasattr(self, "timer_button"):
+                self.timer_button.setEnabled(False)
+
+            # -------- เปิดปุ่ม Sub เฉพาะทีมที่มีผู้เล่นครบ 5 --------
+            off_t1 = any("_team1" in n for n in offenders)
+            off_t2 = any("_team2" in n for n in offenders)
+            if off_t1:
+                self._set_sub_button_enabled_for_team(1, True)
+                self._sub_forced_by_foul_t1 = True
+            if off_t2:
+                self._set_sub_button_enabled_for_team(2, True)
+                self._sub_forced_by_foul_t2 = True
+
+            # -------- แจ้งเตือนครั้งเดียวจนกว่าจะเคลียร์ --------
+            if not self._foul_dialog_shown:
+                names = ", ".join(self._pretty_player_name(n) for n in offenders)
+                try:
+                    QMessageBox.warning(
+                        self,
+                        "ผู้เล่นครบ 5 ฟาวล์",
+                        f"ผู้เล่นต่อไปนี้มี 5 ฟาวล์: {names}\n"
+                        f"กรุณาเปลี่ยนตัวก่อนเล่นต่อ"
+                    )
+                except Exception:
+                    # เผื่อกรณีรันในสภาพแวดล้อมไม่มี UI
+                    pass
+                self._foul_dialog_shown = True
+
+        else:
+            # -------- ไม่มีผู้เล่นครบ 5 ฟาวล์แล้ว --------
+            in_timeout = bool(getattr(self, "timeout_active", False))
+
+            # ปิดปุ่ม Sub กลับ ถ้าก่อนหน้านี้เราเปิดเพราะฟาวล์ และตอนนี้ไม่ใช่ timeout
+            if getattr(self, "_sub_forced_by_foul_t1", False) and not in_timeout:
+                self._set_sub_button_enabled_for_team(1, False)
+                self._sub_forced_by_foul_t1 = False
+            if getattr(self, "_sub_forced_by_foul_t2", False) and not in_timeout:
+                self._set_sub_button_enabled_for_team(2, False)
+                self._sub_forced_by_foul_t2 = False
+
+            # อนุญาตให้ Play ได้ (ผู้ใช้จะเริ่มได้ก็ต่อเมื่อไม่มี offenders เท่านั้น)
+            if hasattr(self, "timer_button"):
+                self.timer_button.setEnabled(True)
+
+            # เปิดให้แจ้งเตือนใหม่รอบหน้า ถ้ามีใครกลับมาครบ 5 อีก
+            self._foul_dialog_shown = False
 
     def update_foul_labels(self):
         # ทีม 1: ปุ่มตัวจริง 1-5
@@ -2834,6 +2990,9 @@ class Competition(QMainWindow):
                 font-weight: 780;
                 font-size: 20px;
             }''')
+
+        if hasattr(self, "_foul_guard_tick"):
+            self._foul_guard_tick()
 
     def swap_player_numbers(self):
         if self.selected_player_in and self.selected_player_out:
@@ -3700,6 +3859,81 @@ class Competition(QMainWindow):
         self.update_foul_labels()
 
     def timer_button_clicked(self):
+        # ถ้ามีตัวจริงคนใดครบ 5 ฟาวล์ -> ห้ามเริ่มเวลา
+        offenders = self._any_starter_fouled_out()
+        if offenders:
+            names = ", ".join(self._pretty_player_name(n) for n in offenders)
+            QMessageBox.information(
+                self,
+                "ไม่สามารถเริ่มเวลา",
+                f"มีผู้เล่นครบ 5 ฟาวล์: {names}\n"
+                f"ต้องเปลี่ยนตัวก่อนถึงจะเล่นต่อได้"
+            )
+            return
+
+        status = self.timer_button.get_current_icon()
+        if status == self.timer_button.play_icon:
+            # เริ่มเล่น "ตรงนี้เท่านั้น" ค่อย insert แมตช์ครั้งแรกเมื่อ period==1 และยังไม่มี match_id
+            if self.period == 1 and not getattr(self, "match_id", None):
+                self.insert_match(self.username, self.team1_id, self.team2_id)
+
+            self.timer_button.set_stop_icon()
+            self.start_timer()
+            # ซ่อน UI สลับตัวเหมือนเดิม
+            self.team1_in_game.hide()
+            self.team1_out_game.hide()
+            self.team1_exchange_icon.hide()
+            self.team2_in_game.hide()
+            self.team2_out_game.hide()
+            self.team2_exchange_icon.hide()
+            # ปิดปุ่ม Sub ตอนกำลังเล่น
+            self.sub_team1_button.setEnabled(False)
+            self.sub_team2_button.setEnabled(False)
+            # state
+            self.timer_running = True
+            # โหมด/สไตล์เหมือนเดิม
+            self.team1_mode.setText("Play")
+            self.team1_mode.setStyleSheet('''QLabel#team1_mode{
+                background: transparent;
+                color: #00d527;
+                font-family: Saira Condensed;
+                font-weight: 780;
+                font-size: 22px;
+            }''')
+            self.team2_mode.setText("Play")
+            self.team2_mode.setStyleSheet('''QLabel#team2_mode{
+                background: transparent;
+                color: #00d527;
+                font-family: Saira Condensed;
+                font-weight: 780;
+                font-size: 22px;
+            }''')
+        else:
+            self.timer_button.set_play_icon()
+            self.stop_timer()
+            self.team1_mode.setText("Pause")
+            self.team1_mode.setStyleSheet('''QLabel#team1_mode{
+                    background: transparent;
+                    color: black;
+                    font-family: Saira Condensed;
+                    font-weight: 780;
+                    font-size: 20px;
+                }''')
+            self.team2_mode.setText("Pause")
+            self.team2_mode.setStyleSheet('''QLabel#team2_mode{
+                    background: transparent;
+                    color: black;
+                    font-family: Saira Condensed;
+                    font-weight: 780;
+                    font-size: 20px;
+                }''')
+            self.timer_running = False
+            # หยุดแล้ว อนุญาตให้ Sub ได้
+            self.sub_team1_button.setEnabled(True)
+            self.sub_team2_button.setEnabled(True)
+
+
+    def timer_button_clicked_old(self):
         if self.period == 1:
             self.insert_match(self.username, self.team1_id, self.team2_id)
         status = self.timer_button.get_current_icon()
