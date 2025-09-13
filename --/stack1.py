@@ -100,7 +100,7 @@ class MainApp(QStackedWidget):
 
         # main window 1
         self.main_window.switch_to_sign_in.connect(self.switch_to_sign_in_from_main_window)
-        self.main_window.switch_to_tournament_32.connect(self.switch_to_tournament_32)
+        self.main_window.switch_to_tournament_32.connect(self.switch_to_tournament_32)  
         self.main_window.switch_to_history.connect(self.switch_to_history)
 
         # tournament 32
